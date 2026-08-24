@@ -2,9 +2,22 @@ import Foundation
 import Quartz
 import SwiftUI
 
+enum GallerySort: String, CaseIterable, Identifiable {
+    case nameAscending, nameDescending, newestFirst
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .nameAscending: return "Name A→Z"
+        case .nameDescending: return "Name Z→A"
+        case .newestFirst: return "Newest first"
+        }
+    }
+}
+
 @MainActor
 final class GlinaModel: ObservableObject {
-
     @Published var draft = GlinaCommandDraft()
     @Published private(set) var isRunning = false
     @Published private(set) var result: GlinaCommandResult?
@@ -22,31 +35,23 @@ final class GlinaModel: ObservableObject {
     /// is assigned, not retained, so something must own it.
     @Published var previewController: AssetPreviewController?
 
-    func presentPreview(urls: [URL], index: Int) {
-        guard !urls.isEmpty else { return }
-        let controller = AssetPreviewController(items: urls)
-        previewController = controller
-        guard let panel = QLPreviewPanel.shared() else { return }
-        panel.dataSource = controller
-        panel.delegate = controller
-        panel.currentPreviewItemIndex = max(0, min(index, urls.count - 1))
-        panel.makeKeyAndOrderFront(nil)
-        panel.reloadData()
-    }
+    // Gallery browsing: one focused element, arrows/strip to move, sort order.
+    @Published var gallerySort: GallerySort = .nameAscending
+    @Published var galleryIndex = 0
+    @Published var focusPath: String?
+
     /// `Glina --assets-dir PATH` opens straight onto an output directory.
     init(assetsDirectory: URL? = nil) {
         self.assetsDirectory = assetsDirectory
         refreshAssets()
     }
 
-
     private let runner = GlinaCommandRunner()
     private var pendingChunks: [Int: String] = [:]
     private var nextSequence = 1
 
-
     /// Launch flags: `--assets-dir PATH` selects the output directory,
-    /// `--play PATH` opens the window already playing a rendered clip.
+    /// `--play PATH` opens the window already on that element.
     func applyLaunchOptions() {
         let arguments = ProcessInfo.processInfo.arguments
         var index = 0
@@ -57,7 +62,7 @@ final class GlinaModel: ObservableObject {
             case "--play" where arguments.indices.contains(index + 1):
                 let url = URL(fileURLWithPath: arguments[index + 1])
                 if FileManager.default.fileExists(atPath: url.path) {
-                    animatedPreviewURL = url
+                    focusPath = url.path
                 }
                 draft.action = .assets
             default:
@@ -66,6 +71,7 @@ final class GlinaModel: ObservableObject {
             index += 1
         }
     }
+
     var output: String {
         guard let result else { return "" }
         let stdout = result.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -147,6 +153,65 @@ final class GlinaModel: ObservableObject {
         return paths
     }
 
+    // MARK: - Gallery browsing
+
+    /// One tile per asset: every .glb model, plus renders that belong to no
+    /// model. The order follows the operator's sort choice.
+    func galleryTiles() -> [URL] {
+        let models = assetFiles.filter { $0.pathExtension.lowercased() == "glb" }
+        let groupedStems = Set(models.map { $0.deletingPathExtension().lastPathComponent })
+        let orphans = assetFiles
+            .filter { $0.pathExtension.lowercased() != "glb" }
+            .filter { preview in !groupedStems.contains { stem in preview.deletingPathExtension().lastPathComponent.hasPrefix(stem) } }
+        let ascending: (URL, URL) -> Bool = {
+            $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
+        }
+        var tiles = models.sorted(by: ascending) + orphans.sorted(by: ascending)
+        switch gallerySort {
+        case .nameAscending:
+            break
+        case .nameDescending:
+            tiles.reverse()
+        case .newestFirst:
+            tiles.sort { modificationDate($0) > modificationDate($1) }
+        }
+        return tiles
+    }
+
+    private func modificationDate(_ url: URL) -> Date {
+        ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date) ?? .distantPast
+    }
+
+    func currentGalleryAsset(tiles: [URL]) -> URL? {
+        guard !tiles.isEmpty else { return nil }
+        return tiles[min(max(galleryIndex, 0), tiles.count - 1)]
+    }
+
+    func stepGallery(_ direction: Int, count: Int) {
+        guard count > 0 else { return }
+        galleryIndex = ((galleryIndex + direction) % count + count) % count
+    }
+
+    /// `--play PATH` lands the viewer on that element once the gallery exists.
+    func focusLaunchedAsset() {
+        guard let path = focusPath else { return }
+        let tiles = galleryTiles()
+        if let index = tiles.firstIndex(where: { $0.path == path }) {
+            galleryIndex = index
+        } else {
+            // A preview grouped into a .glb is not a standalone tile. Focus
+            // the owning model instead (smok-flap-preview.gif → smok.glb).
+            let previewStem = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+            if let index = tiles.firstIndex(where: { tile in
+                tile.pathExtension.lowercased() == "glb"
+                    && previewStem.hasPrefix(tile.deletingPathExtension().lastPathComponent)
+            }) {
+                galleryIndex = index
+            }
+        }
+        focusPath = nil
+    }
+
     // MARK: - Assets browser
 
     func chooseAssetsDirectory() {
@@ -163,6 +228,7 @@ final class GlinaModel: ObservableObject {
     func setAssetsDirectory(_ url: URL) {
         assetsDirectory = url
         refreshAssets()
+        galleryIndex = 0
     }
 
     func refreshAssets() {
@@ -190,6 +256,18 @@ final class GlinaModel: ObservableObject {
 
     func revealInFinder(_ url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    func presentPreview(urls: [URL], index: Int) {
+        guard !urls.isEmpty else { return }
+        let controller = AssetPreviewController(items: urls)
+        previewController = controller
+        guard let panel = QLPreviewPanel.shared() else { return }
+        panel.dataSource = controller
+        panel.delegate = controller
+        panel.currentPreviewItemIndex = max(0, min(index, urls.count - 1))
+        panel.makeKeyAndOrderFront(nil)
+        panel.reloadData()
     }
 
     // MARK: - Animation preview

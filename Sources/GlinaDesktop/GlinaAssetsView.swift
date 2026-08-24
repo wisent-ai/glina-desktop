@@ -80,54 +80,89 @@ struct GlinaAssetsView: View {
     }
 
     private var assetsList: some View {
-        let models = model.assetFiles.filter { $0.pathExtension.lowercased() == "glb" }.sorted {
-            $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
-        }
-        let groupedStems = Set(models.map { $0.deletingPathExtension().lastPathComponent })
-        let orphans = model.assetFiles
-            .filter { $0.pathExtension.lowercased() != "glb" }
-            .filter { preview in !groupedStems.contains { stem in preview.deletingPathExtension().lastPathComponent.hasPrefix(stem) } }
-            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-        let tiles = models + orphans
-        return WisentSectionBox(title: "Gallery", detail: "\(models.count) asset(s)\(orphans.isEmpty ? "" : ", +\(orphans.count) render(s)"). GIF tiles play by themselves; click a model to animate it.") {
+        let tiles = model.galleryTiles()
+        return WisentSectionBox(
+            title: "Gallery",
+            detail: "Arrows (or ← →) move between elements; the strip below jumps straight to one."
+        ) {
             if tiles.isEmpty {
                 Text("No assets under this directory yet.")
                     .font(WisentTypeScale.caption())
                     .foregroundStyle(WisentDesign.secondary)
             } else {
-                ScrollView {
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 170), spacing: WisentDesign.Space.x3)],
-                        spacing: WisentDesign.Space.x3
-                    ) {
-                        ForEach(tiles, id: \.self) { url in
-                            assetTile(url)
+                HStack(spacing: WisentDesign.Space.x3) {
+                    Picker("Sort", selection: $model.gallerySort) {
+                        ForEach(GallerySort.allCases) { sort in
+                            Text(sort.label).tag(sort)
                         }
                     }
-                    .padding(.vertical, WisentDesign.Space.x1)
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 180)
+                    Spacer()
+                    Text("\(model.galleryIndex + 1) / \(tiles.count)")
+                        .font(WisentTypeScale.identifier())
+                        .foregroundStyle(WisentDesign.secondary)
+                    Button("‹") { model.stepGallery(-1, count: tiles.count) }
+                        .keyboardShortcut(.leftArrow, modifiers: [])
+                    Button("›") { model.stepGallery(1, count: tiles.count) }
+                        .keyboardShortcut(.rightArrow, modifiers: [])
                 }
-                .frame(maxHeight: 520)
+                focusedAsset(tiles: tiles)
+                filmstrip(tiles: tiles)
+            }
+        }
+        .onAppear { model.focusLaunchedAsset() }
+    }
+
+    @ViewBuilder
+    private func focusedAsset(tiles: [URL]) -> some View {
+        if let url = model.currentGalleryAsset(tiles: tiles) {
+            tileContent(url)
+                .frame(maxHeight: 380)
+                .frame(maxWidth: .infinity)
+                .background(WisentDesign.muted.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            HStack(spacing: WisentDesign.Space.x3) {
+                Text(url.lastPathComponent)
+                    .font(WisentTypeScale.bodyStrong())
+                    .foregroundStyle(WisentDesign.ink)
+                    .textSelection(.enabled)
+                Spacer(minLength: 0)
+                if url.pathExtension.lowercased() == "glb" {
+                    Button("Animate this") { model.selectedGLB = url }
+                }
+                Button("Reveal in Finder") { model.revealInFinder(url) }
             }
         }
     }
 
-    private func assetTile(_ url: URL) -> some View {
-        VStack(spacing: 6) {
-            ZStack {
-                WisentDesign.muted.opacity(0.10)
-                tileContent(url)
+    private func filmstrip(tiles: [URL]) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: WisentDesign.Space.x2) {
+                    ForEach(Array(tiles.enumerated()), id: \.element) { index, url in
+                        ZStack {
+                            Rectangle().fill(WisentDesign.muted.opacity(0.10))
+                            tileContent(url)
+                                .padding(4)
+                        }
+                        .frame(width: 88, height: 88)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(index == model.galleryIndex ? WisentDesign.brand : .clear, lineWidth: 2)
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.galleryIndex = index }
+                        .id(index)
+                    }
+                }
+                .padding(.vertical, 2)
             }
-            .frame(height: 150)
-            .frame(maxWidth: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .contentShape(Rectangle())
-            .onTapGesture { tileTapped(url) }
-            Text(url.lastPathComponent)
-                .font(WisentTypeScale.caption())
-                .foregroundStyle(WisentDesign.ink)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 96)
+            .onChange(of: model.galleryIndex) { _, newIndex in
+                proxy.scrollTo(newIndex, anchor: .center)
+            }
         }
     }
 
