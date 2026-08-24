@@ -32,6 +32,11 @@ if [ -n "${WISENT_UPDATE_FEED_URL:-}" ]; then
   esac
   plutil -replace SUFeedURL -string "$WISENT_UPDATE_FEED_URL" "$CONTENTS/Info.plist"
 fi
+if [ -f "$ROOT/App/AppIcon.icns" ]; then
+  install -m 0644 "$ROOT/App/AppIcon.icns" "$RESOURCES/AppIcon.icns"
+else
+  sh "$ROOT/Scripts/import-brand-icon.sh" glina-desktop "$RESOURCES/AppIcon.icns"
+fi
 install -m 0755 "$BIN_DIR/GlinaDesktop" "$MACOS/GlinaDesktop"
 for bundle in "$BIN_DIR"/*.bundle; do
   [ -d "$bundle" ] || continue
