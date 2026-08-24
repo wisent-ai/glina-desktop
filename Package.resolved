@@ -1,5 +1,5 @@
 {
-  "originHash" : "8864ba68c77b8550ec0e21517916e00f576025d0cbaa2d2dbb1fe7fe76a1ad26",
+  "originHash" : "d9fd48735cbf004b37ed97ecdee9ddd461ee22980f7fb3f14a19a21059a74f3d",
   "pins" : [
     {
       "identity" : "sparkle",
@@ -25,6 +25,14 @@
       "state" : {
         "revision" : "04421211d303e48107359df4016ad23bdd1937e1",
         "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "wisent-errors",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wisent-ai/wisent-errors.git",
+      "state" : {
+        "revision" : "b01a0c99766b5c6378ecdbf3921108420ba058f1"
       }
     }
   ],

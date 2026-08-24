@@ -1,6 +1,7 @@
 import Foundation
 import Quartz
 import SwiftUI
+import WisentErrors
 
 enum GallerySort: String, CaseIterable, Identifiable {
     case nameAscending, nameDescending, newestFirst
@@ -104,6 +105,12 @@ final class GlinaModel: ObservableObject {
         if let problem = draft.validationProblem {
             failure = problem
             backendStartFailed = false
+            WisentFailureReporter.shared.report(
+                failurePoint: "glina.run",
+                code: "unknown",
+                service: "glina",
+                detail: problem
+            )
             return
         }
         isRunning = true
@@ -134,11 +141,31 @@ final class GlinaModel: ObservableObject {
             result = outcome
             outputPaths = outcome.paths
             failure = outcome.refusal
+            if let refusal = outcome.refusal {
+                WisentFailureReporter.shared.report(
+                    failurePoint: "glina.run",
+                    code: "unknown",
+                    service: "glina",
+                    detail: refusal
+                )
+            }
         } catch let error as GlinaBackendError {
             backendStartFailed = true
             failure = error.errorDescription
+            WisentFailureReporter.shared.report(
+                failurePoint: "glina.backend_start",
+                code: "infra_down",
+                service: "glina",
+                detail: error.errorDescription
+            )
         } catch {
             failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            WisentFailureReporter.shared.report(
+                failurePoint: "glina.run",
+                code: "unknown",
+                service: "glina",
+                detail: failure
+            )
         }
     }
 
@@ -329,6 +356,12 @@ final class GlinaModel: ObservableObject {
             let outcome = try await client.previewAnim(path: glbURL.path, clip: clip) { _ in }
             guard outcome.status == 0, outcome.refusal == nil else {
                 animationNote = Self.tail(outcome.refusal ?? "The render did not finish.")
+                WisentFailureReporter.shared.report(
+                    failurePoint: "glina.animation_preview",
+                    code: "unknown",
+                    service: "glina",
+                    detail: animationNote
+                )
                 return
             }
             if let outPath = outcome.paths.first {
@@ -340,6 +373,12 @@ final class GlinaModel: ObservableObject {
             }
         } catch {
             animationNote = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            WisentFailureReporter.shared.report(
+                failurePoint: "glina.animation_preview",
+                code: error is GlinaBackendError ? "infra_down" : "unknown",
+                service: "glina",
+                detail: animationNote
+            )
         }
     }
 
