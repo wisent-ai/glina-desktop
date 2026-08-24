@@ -280,10 +280,12 @@ struct AnimatedGifPlayer: NSViewRepresentable {
         let view = NSImageView()
         view.imageScaling = .scaleProportionallyUpOrDown
         view.image = NSImage(contentsOf: url)
+        view.animates = true
         return view
     }
 
     func updateNSView(_ view: NSImageView, context: Context) {
         view.image = NSImage(contentsOf: url)
+        view.animates = true
     }
 }
