@@ -274,7 +274,7 @@ struct AnimatedGifPlayer: NSViewRepresentable {
     }
 
     func updateNSView(_ view: FrameDrivenGIFView, context: Context) {
-        if view.loadedURL != url { view.load(url) }
+        if view.needsReload(for: url) { view.load(url) }
     }
 
     static func dismantleNSView(_ view: FrameDrivenGIFView, coordinator: Void) {
@@ -289,14 +289,22 @@ final class FrameDrivenGIFView: NSImageView {
     private var frameIndex = 0
     private var animationTask: Task<Void, Never>?
     private(set) var loadedURL: URL?
+    private var loadedModificationDate: Date?
+    private var nextReloadCheck = Date.distantPast
+
+    func needsReload(for url: URL) -> Bool {
+        loadedURL != url || modificationDate(for: url) != loadedModificationDate
+    }
 
     func load(_ url: URL) {
         stop()
         loadedURL = url
+        loadedModificationDate = modificationDate(for: url)
+        nextReloadCheck = Date().addingTimeInterval(1)
         frames = []
         delays = []
         frameIndex = 0
-        let options = [kCGImageSourceShouldCache: true] as CFDictionary
+        let options = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithURL(url as CFURL, options) else {
             image = nil
             return
@@ -333,11 +341,22 @@ final class FrameDrivenGIFView: NSImageView {
                 let delay = self.delays.indices.contains(self.frameIndex) ? self.delays[self.frameIndex] : 0.1
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 guard !Task.isCancelled else { return }
+                if Date() >= self.nextReloadCheck {
+                    self.nextReloadCheck = Date().addingTimeInterval(1)
+                    if let url = self.loadedURL, self.needsReload(for: url) {
+                        self.load(url)
+                        return
+                    }
+                }
                 self.frameIndex = (self.frameIndex + 1) % self.frames.count
                 self.image = self.frames[self.frameIndex]
                 self.needsDisplay = true
                 self.displayIfNeeded()
             }
         }
+    }
+
+    private func modificationDate(for url: URL) -> Date? {
+        try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
     }
 }
