@@ -15,6 +15,12 @@ enum GallerySort: String, CaseIterable, Identifiable {
         }
     }
 }
+private struct AssetSnapshot: Hashable {
+    let path: String
+    let size: Int
+    let modificationDate: Date
+}
+
 
 @MainActor
 final class GlinaModel: ObservableObject {
@@ -33,6 +39,8 @@ final class GlinaModel: ObservableObject {
     // Assets browser.
     @Published var assetsDirectory: URL?
     @Published private(set) var assetFiles: [URL] = []
+    private var assetSnapshot: [AssetSnapshot] = []
+    private var assetRefreshTask: Task<Void, Never>?
 
     /// Strongly retained Quick Look controller — QLPreviewPanel's dataSource
     /// is assigned, not retained, so something must own it.
@@ -47,6 +55,11 @@ final class GlinaModel: ObservableObject {
     init(assetsDirectory: URL? = nil) {
         self.assetsDirectory = assetsDirectory
         refreshAssets()
+        startAutomaticAssetRefresh()
+    }
+
+    deinit {
+        assetRefreshTask?.cancel()
     }
 
     private let backend = GlinaBackendProcess()
@@ -213,31 +226,68 @@ final class GlinaModel: ObservableObject {
 
     func setAssetsDirectory(_ url: URL) {
         assetsDirectory = url
-        refreshAssets()
+        assetSnapshot = []
         galleryIndex = 0
+        refreshAssets()
     }
 
     func refreshAssets() {
+        let selectedPath = currentGalleryAsset(tiles: galleryTiles())?.path
         guard let root = assetsDirectory else {
+            assetSnapshot = []
             assetFiles = []
+            galleryIndex = 0
             return
         }
         let manager = FileManager.default
         guard let enumerator = manager.enumerator(
             at: root,
-            includingPropertiesForKeys: [.isRegularFileKey],
+            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey],
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         ) else {
+            assetSnapshot = []
             assetFiles = []
+            galleryIndex = 0
             return
         }
-        var found: [URL] = []
+        var found: [(url: URL, snapshot: AssetSnapshot)] = []
         for case let url as URL in enumerator {
             let ext = url.pathExtension.lowercased()
-            guard ["glb", "png", "gif"].contains(ext) else { continue }
-            found.append(url)
+            guard ["glb", "png", "gif"].contains(ext),
+                  let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]),
+                  values.isRegularFile == true else { continue }
+            found.append((
+                url,
+                AssetSnapshot(
+                    path: url.path,
+                    size: values.fileSize ?? 0,
+                    modificationDate: values.contentModificationDate ?? .distantPast
+                )
+            ))
         }
-        assetFiles = found.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+        found.sort { $0.url.path.localizedStandardCompare($1.url.path) == .orderedAscending }
+        let nextSnapshot = found.map(\.snapshot)
+        guard nextSnapshot != assetSnapshot else { return }
+        assetSnapshot = nextSnapshot
+        assetFiles = found.map(\.url)
+
+        let tiles = galleryTiles()
+        if let selectedPath, let index = tiles.firstIndex(where: { $0.path == selectedPath }) {
+            galleryIndex = index
+        } else {
+            galleryIndex = min(galleryIndex, max(tiles.count - 1, 0))
+        }
+    }
+
+    private func startAutomaticAssetRefresh() {
+        assetRefreshTask?.cancel()
+        assetRefreshTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled, let self else { return }
+                self.refreshAssets()
+            }
+        }
     }
 
     func revealInFinder(_ url: URL) {
