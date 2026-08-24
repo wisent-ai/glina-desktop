@@ -9,11 +9,29 @@ MACOS="$CONTENTS/MacOS"
 FRAMEWORKS="$CONTENTS/Frameworks"
 RESOURCES="$CONTENTS/Resources"
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+PRODUCT_VERSION=${WISENT_RELEASE_VERSION:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$ROOT/App/Info.plist")}
+BUILD_NUMBER=${WISENT_BUILD_NUMBER:-$(git -C "$ROOT" rev-list --count HEAD)}
+case "$PRODUCT_VERSION" in
+  *[!0-9.]*|'') printf 'Release version must use MAJOR.MINOR.PATCH syntax: %s\n' "$PRODUCT_VERSION" >&2; exit 1 ;;
+esac
+if [ "$(printf '%s' "$PRODUCT_VERSION" | awk -F. '{print NF}')" -ne 3 ]; then
+  printf 'Release version must use MAJOR.MINOR.PATCH syntax: %s\n' "$PRODUCT_VERSION" >&2
+  exit 1
+fi
 swift build --package-path "$ROOT" -c release --product GlinaDesktop
 BIN_DIR=$(swift build --package-path "$ROOT" -c release --show-bin-path)
 rm -rf "$APP"
 mkdir -p "$MACOS" "$FRAMEWORKS" "$RESOURCES"
 install -m 0644 "$ROOT/App/Info.plist" "$CONTENTS/Info.plist"
+plutil -replace CFBundleShortVersionString -string "$PRODUCT_VERSION" "$CONTENTS/Info.plist"
+plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$CONTENTS/Info.plist"
+if [ -n "${WISENT_UPDATE_FEED_URL:-}" ]; then
+  case "$WISENT_UPDATE_FEED_URL" in
+    https://*) ;;
+    *) printf 'Update feed must use HTTPS: %s\n' "$WISENT_UPDATE_FEED_URL" >&2; exit 1 ;;
+  esac
+  plutil -replace SUFeedURL -string "$WISENT_UPDATE_FEED_URL" "$CONTENTS/Info.plist"
+fi
 install -m 0755 "$BIN_DIR/GlinaDesktop" "$MACOS/GlinaDesktop"
 for bundle in "$BIN_DIR"/*.bundle; do
   [ -d "$bundle" ] || continue
