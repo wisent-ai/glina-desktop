@@ -17,6 +17,7 @@ struct GlinaDesktopApp: App {
     var body: some Scene {
         WindowGroup("Glina") {
             GlinaRootView(model: model)
+                .onAppear { model.applyLaunchOptions() }
         }
         .defaultSize(width: 1_240, height: 820)
         .windowResizability(.contentMinSize)

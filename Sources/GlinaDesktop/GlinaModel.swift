@@ -44,6 +44,28 @@ final class GlinaModel: ObservableObject {
     private var pendingChunks: [Int: String] = [:]
     private var nextSequence = 1
 
+
+    /// Launch flags: `--assets-dir PATH` selects the output directory,
+    /// `--play PATH` opens the window already playing a rendered clip.
+    func applyLaunchOptions() {
+        let arguments = ProcessInfo.processInfo.arguments
+        var index = 0
+        while index < arguments.count {
+            switch arguments[index] {
+            case "--assets-dir" where arguments.indices.contains(index + 1):
+                setAssetsDirectory(URL(fileURLWithPath: arguments[index + 1]))
+            case "--play" where arguments.indices.contains(index + 1):
+                let url = URL(fileURLWithPath: arguments[index + 1])
+                if FileManager.default.fileExists(atPath: url.path) {
+                    animatedPreviewURL = url
+                }
+                draft.action = .assets
+            default:
+                break
+            }
+            index += 1
+        }
+    }
     var output: String {
         guard let result else { return "" }
         let stdout = result.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
