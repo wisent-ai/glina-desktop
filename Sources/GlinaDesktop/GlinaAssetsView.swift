@@ -80,61 +80,113 @@ struct GlinaAssetsView: View {
     }
 
     private var assetsList: some View {
-        let urls = model.assetFiles
-        return WisentSectionBox(title: "Artifacts", detail: "\(urls.count) file(s). Double-click to Quick Look.") {
-            if urls.isEmpty {
-                Text("No .glb, .png or .gif files under this directory yet.")
+        let models = model.assetFiles.filter { $0.pathExtension.lowercased() == "glb" }.sorted {
+            $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
+        }
+        let groupedStems = Set(models.map { $0.deletingPathExtension().lastPathComponent })
+        let orphans = model.assetFiles
+            .filter { $0.pathExtension.lowercased() != "glb" }
+            .filter { preview in !groupedStems.contains { stem in preview.deletingPathExtension().lastPathComponent.hasPrefix(stem) } }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        let tiles = models + orphans
+        return WisentSectionBox(title: "Gallery", detail: "\(models.count) asset(s)\(orphans.isEmpty ? "" : ", +\(orphans.count) render(s)"). GIF tiles play by themselves; click a model to animate it.") {
+            if tiles.isEmpty {
+                Text("No assets under this directory yet.")
                     .font(WisentTypeScale.caption())
                     .foregroundStyle(WisentDesign.secondary)
             } else {
                 ScrollView {
-                    VStack(spacing: WisentDesign.Space.x1) {
-                        ForEach(Array(urls.enumerated()), id: \.element) { index, url in
-                            assetRow(url) { presentPreview(urls: urls, index: index) }
-                            if index < urls.count - 1 { Divider() }
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 170), spacing: WisentDesign.Space.x3)],
+                        spacing: WisentDesign.Space.x3
+                    ) {
+                        ForEach(tiles, id: \.self) { url in
+                            assetTile(url)
                         }
                     }
+                    .padding(.vertical, WisentDesign.Space.x1)
                 }
-                .frame(maxHeight: 420)
+                .frame(maxHeight: 520)
             }
         }
     }
 
-    private func assetRow(_ url: URL, preview: @escaping () -> Void) -> some View {
-        HStack(spacing: WisentDesign.Space.x3) {
-            Image(systemName: Self.icon(for: url))
-                .foregroundStyle(WisentDesign.brand)
-                .frame(width: 18)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(url.lastPathComponent)
-                    .font(WisentTypeScale.bodyStrong())
-                    .foregroundStyle(WisentDesign.ink)
-                Text(url.deletingLastPathComponent().path)
-                    .font(WisentTypeScale.caption())
-                    .foregroundStyle(WisentDesign.muted)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+    private func assetTile(_ url: URL) -> some View {
+        VStack(spacing: 6) {
+            ZStack {
+                WisentDesign.muted.opacity(0.10)
+                tileContent(url)
             }
-            Spacer(minLength: 0)
-            if url.pathExtension.lowercased() == "glb" {
-                Button("Animate") { model.selectedGLB = url }
-            }
-            if url.pathExtension.lowercased() == "gif" {
-                Button("Play") { model.animatedPreviewURL = url }
-            }
-            Button("Quick Look") { preview() }
-            Button("Reveal in Finder") { model.revealInFinder(url) }
+            .frame(height: 150)
+            .frame(maxWidth: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .contentShape(Rectangle())
+            .onTapGesture { tileTapped(url) }
+            Text(url.lastPathComponent)
+                .font(WisentTypeScale.caption())
+                .foregroundStyle(WisentDesign.ink)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2) { preview() }
-        .padding(.vertical, WisentDesign.Space.x1)
     }
 
-    private static func icon(for url: URL) -> String {
+    @ViewBuilder
+    private func tileContent(_ url: URL) -> some View {
         switch url.pathExtension.lowercased() {
-        case "glb": return "cube"
-        case "gif": return "play.rectangle"
-        default: return "photo"
+        case "gif":
+            AnimatedGifPlayer(url: url)
+                .aspectRatio(contentMode: .fit)
+        case "png":
+            imageOrPlaceholder(url)
+        default:
+            if let preview = matchedPreview(for: url) {
+                imageOrPlaceholder(preview)
+            } else {
+                Image(systemName: "cube.transparent")
+                    .font(.system(size: 40))
+                    .foregroundStyle(WisentDesign.muted)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func imageOrPlaceholder(_ url: URL) -> some View {
+        if url.pathExtension.lowercased() == "gif" {
+            AnimatedGifPlayer(url: url)
+                .aspectRatio(contentMode: .fit)
+        } else if let image = NSImage(contentsOf: url) {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else {
+            Image(systemName: "photo")
+                .foregroundStyle(WisentDesign.muted)
+        }
+    }
+
+    private var placeholder: some View {
+        Image(systemName: "cube.transparent")
+    }
+
+    /// A .glb tile shows the rendered sibling the pipeline already produced
+    /// (smok.glb → smok-flap-preview.gif, kamien.glb → kamien-preview.png).
+    private func matchedPreview(for glbURL: URL) -> URL? {
+        let stem = glbURL.deletingPathExtension().lastPathComponent
+        return model.assetFiles.first { candidate in
+            candidate.deletingLastPathComponent() == glbURL.deletingLastPathComponent()
+                && candidate != glbURL
+                && ["png", "gif"].contains(candidate.pathExtension.lowercased())
+                && candidate.deletingPathExtension().lastPathComponent.hasPrefix(stem)
+        }
+    }
+
+    private func tileTapped(_ url: URL) {
+        if url.pathExtension.lowercased() == "glb" {
+            model.selectedGLB = url
+            if let preview = matchedPreview(for: url) {
+                model.animatedPreviewURL = preview
+            }
         }
     }
 
