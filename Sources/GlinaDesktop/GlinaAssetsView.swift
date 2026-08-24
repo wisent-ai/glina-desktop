@@ -52,8 +52,9 @@ struct GlinaAssetsView: View {
             }
 
             if let root = model.assetsDirectory {
-                commandNote("find \(root.path) -name '*.glb' -o -name '*.png'")
+                commandNote("find \(root.path) -name '*.glb' -o -name '*.png' -o -name '*.gif'")
                 assetsList
+                animationSection
             } else {
                 WisentEmptyPanel(
                     title: "No output directory",
@@ -82,7 +83,7 @@ struct GlinaAssetsView: View {
         let urls = model.assetFiles
         return WisentSectionBox(title: "Artifacts", detail: "\(urls.count) file(s). Double-click to Quick Look.") {
             if urls.isEmpty {
-                Text("No .glb or .png files under this directory yet.")
+                Text("No .glb, .png or .gif files under this directory yet.")
                     .font(WisentTypeScale.caption())
                     .foregroundStyle(WisentDesign.secondary)
             } else {
@@ -101,7 +102,7 @@ struct GlinaAssetsView: View {
 
     private func assetRow(_ url: URL, preview: @escaping () -> Void) -> some View {
         HStack(spacing: WisentDesign.Space.x3) {
-            Image(systemName: url.pathExtension.lowercased() == "glb" ? "cube" : "photo")
+            Image(systemName: Self.icon(for: url))
                 .foregroundStyle(WisentDesign.brand)
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 2) {
@@ -115,11 +116,79 @@ struct GlinaAssetsView: View {
                     .truncationMode(.middle)
             }
             Spacer(minLength: 0)
+            if url.pathExtension.lowercased() == "glb" {
+                Button("Animate") { model.selectedGLB = url }
+            }
+            if url.pathExtension.lowercased() == "gif" {
+                Button("Play") { model.animatedPreviewURL = url }
+            }
             Button("Quick Look") { preview() }
             Button("Reveal in Finder") { model.revealInFinder(url) }
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { preview() }
         .padding(.vertical, WisentDesign.Space.x1)
+    }
+
+    private static func icon(for url: URL) -> String {
+        switch url.pathExtension.lowercased() {
+        case "glb": return "cube"
+        case "gif": return "play.rectangle"
+        default: return "photo"
+        }
+    }
+
+    /// The animation workflow for one selected .glb: the operator names a
+    /// clip (or leaves empty for the CLI's longest), the glina CLI renders
+    /// through Blender, and the looping GIF plays right below.
+    @ViewBuilder
+    private var animationSection: some View {
+        if let glb = model.selectedGLB {
+            WisentSectionBox(
+                title: "Animation preview",
+                detail: "Runs `glina preview-anim` — Blender renders the clip, this window plays it."
+            ) {
+                Text(glb.lastPathComponent)
+                    .font(WisentTypeScale.identifier())
+                    .textSelection(.enabled)
+                HStack(spacing: WisentDesign.Space.x3) {
+                    TextField("clip (empty = longest)", text: $model.animationClip)
+                        .font(WisentTypeScale.identifier())
+                        .frame(maxWidth: 240)
+                    Button(model.isRenderingAnimation ? "Rendering…" : "Render animation") {
+                        Task { await model.renderAnimationPreview(for: glb) }
+                    }
+                    .disabled(model.isRenderingAnimation)
+                }
+                if let note = model.animationNote, !note.isEmpty {
+                    Text(note)
+                        .font(WisentTypeScale.caption())
+                        .foregroundStyle(WisentDesign.secondary)
+                        .textSelection(.enabled)
+                }
+                if let gif = model.animatedPreviewURL {
+                    AnimatedGifPlayer(url: gif)
+                        .frame(maxWidth: 420, maxHeight: 320)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+            }
+        }
+    }
+
+}
+/// NSImageView plays animated GIF representations out of the box; SwiftUI has
+/// no native equivalent, so this is the whole bridge.
+struct AnimatedGifPlayer: NSViewRepresentable {
+    let url: URL
+
+    func makeNSView(context: Context) -> NSImageView {
+        let view = NSImageView()
+        view.imageScaling = .scaleProportionallyUpOrDown
+        view.image = NSImage(contentsOf: url)
+        return view
+    }
+
+    func updateNSView(_ view: NSImageView, context: Context) {
+        view.image = NSImage(contentsOf: url)
     }
 }

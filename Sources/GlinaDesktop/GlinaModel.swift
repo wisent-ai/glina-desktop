@@ -4,6 +4,7 @@ import SwiftUI
 
 @MainActor
 final class GlinaModel: ObservableObject {
+
     @Published var draft = GlinaCommandDraft()
     @Published private(set) var isRunning = false
     @Published private(set) var result: GlinaCommandResult?
@@ -32,6 +33,12 @@ final class GlinaModel: ObservableObject {
         panel.makeKeyAndOrderFront(nil)
         panel.reloadData()
     }
+    /// `Glina --assets-dir PATH` opens straight onto an output directory.
+    init(assetsDirectory: URL? = nil) {
+        self.assetsDirectory = assetsDirectory
+        refreshAssets()
+    }
+
 
     private let runner = GlinaCommandRunner()
     private var pendingChunks: [Int: String] = [:]
@@ -153,7 +160,7 @@ final class GlinaModel: ObservableObject {
         var found: [URL] = []
         for case let url as URL in enumerator {
             let ext = url.pathExtension.lowercased()
-            guard ext == "glb" || ext == "png" else { continue }
+            guard ["glb", "png", "gif"].contains(ext) else { continue }
             found.append(url)
         }
         assetFiles = found.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
@@ -161,5 +168,51 @@ final class GlinaModel: ObservableObject {
 
     func revealInFinder(_ url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    // MARK: - Animation preview
+    //
+    // The app never renders glTF itself: `glina preview-anim` walks the same
+    // Blender MCP bridge as every other command and hands back a looping GIF,
+    // which NSImageView plays inline.
+
+    @Published var animationClip = ""
+    @Published private(set) var isRenderingAnimation = false
+    @Published private(set) var animationNote: String?
+    @Published var animatedPreviewURL: URL?
+    @Published var selectedGLB: URL?
+
+    func renderAnimationPreview(for glbURL: URL) async {
+        guard !isRenderingAnimation else { return }
+        isRenderingAnimation = true
+        animationNote = nil
+        defer { isRenderingAnimation = false }
+        var arguments = ["preview-anim", glbURL.path]
+        let clip = animationClip.trimmingCharacters(in: .whitespaces)
+        if !clip.isEmpty { arguments += ["--clip", clip] }
+        do {
+            let result = try await runner.run(arguments: arguments) { _, _ in }
+            guard result.status == 0 else {
+                animationNote = Self.tail(result.standardError.isEmpty ? result.standardOutput : result.standardError)
+                return
+            }
+            if let data = result.standardOutput.data(using: .utf8),
+               let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let outPath = doc["outPath"] as? String {
+                animatedPreviewURL = URL(fileURLWithPath: outPath)
+                refreshAssets()
+                animationNote = "rendered " + outPath
+            } else {
+                animationNote = Self.tail(result.standardOutput)
+            }
+        } catch {
+            animationNote = error.localizedDescription
+        }
+    }
+
+    private static func tail(_ text: String, maxCharacters: Int = 400) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > maxCharacters else { return trimmed }
+        return "…" + trimmed.suffix(maxCharacters)
     }
 }
