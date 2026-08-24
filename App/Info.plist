@@ -11,7 +11,7 @@
 <key>CFBundleShortVersionString</key><string>0.1.1</string>
 <key>CFBundleVersion</key><string>2</string>
 <key>SUFeedURL</key><string></string>
-<key>SUPublicEDKey</key><string>bg9GoQd23JG3dc9UmeEbvi/t2M9dYvumF23VGNYCn7o=</string>
+<key>SUPublicEDKey</key><string>2kaYcTvpE71A1X0TFoeMQCivDv9CUDPOu92LwClXPMc=</string>
 <key>SUEnableAutomaticChecks</key><true/>
 <key>SUScheduledCheckInterval</key><integer>86400</integer>
 <key>SUVerifyUpdateBeforeExtraction</key><true/>
