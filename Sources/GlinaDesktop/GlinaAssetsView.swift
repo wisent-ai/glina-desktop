@@ -52,14 +52,13 @@ struct GlinaAssetsView: View {
                 }
             }
 
-            if let root = model.assetsDirectory {
-                commandNote("find \(root.path) -name '*.glb' -o -name '*.png' -o -name '*.gif'")
+            if model.assetsDirectory != nil {
                 assetsList
                 animationSection
             } else {
                 WisentEmptyPanel(
                     title: "No output directory",
-                    detail: "Choose the directory the glina CLI sculpts into, then browse what it produced.",
+                    detail: "Choose the folder your sculpted assets are saved in, then browse what Glina produced.",
                     symbol: "cube.transparent"
                 )
             }
@@ -67,17 +66,6 @@ struct GlinaAssetsView: View {
     }
     private func presentPreview(urls: [URL], index: Int) {
         model.presentPreview(urls: urls, index: index)
-    }
-
-    /// Browsing is app-local; the only external process here is Finder.
-    private func commandNote(_ line: String) -> some View {
-        WisentSectionBox(title: "Command", detail: "The exact listing this view mirrors.") {
-            Text(line)
-                .font(WisentTypeScale.identifier())
-                .foregroundStyle(WisentDesign.ink)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 
     private var assetsList: some View {
@@ -227,8 +215,8 @@ struct GlinaAssetsView: View {
     }
 
     /// The animation workflow for one selected .glb: the operator names a
-    /// clip (or leaves empty for the CLI's longest), the glina CLI renders
-    /// through Blender, and the looping GIF plays right below.
+    /// clip (or leaves empty for the longest), Glina renders it through
+    /// Blender, and the looping GIF plays right below.
     /// Two independent entries: "Animate" on a .glb opens the render form,
     /// "Play" on a .gif plays it. Either may exist without the other.
     @ViewBuilder
@@ -236,7 +224,7 @@ struct GlinaAssetsView: View {
         if model.selectedGLB != nil || model.animatedPreviewURL != nil {
             WisentSectionBox(
                 title: "Animation preview",
-                detail: "Runs `glina preview-anim` — Blender renders the clip, this window plays it."
+                detail: "Blender renders the clip; the looping GIF plays here."
             ) {
                 if let glb = model.selectedGLB {
                     Text(glb.lastPathComponent)

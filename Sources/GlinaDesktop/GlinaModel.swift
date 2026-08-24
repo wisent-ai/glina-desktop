@@ -20,11 +20,14 @@ enum GallerySort: String, CaseIterable, Identifiable {
 final class GlinaModel: ObservableObject {
     @Published var draft = GlinaCommandDraft()
     @Published private(set) var isRunning = false
-    @Published private(set) var result: GlinaCommandResult?
+    @Published private(set) var result: GlinaOutcome?
     @Published private(set) var failure: String?
     @Published private(set) var startedAt: Date?
-    /// Live combined stdout/stderr, in the process's own order.
+    /// Live log streamed by the backend, in the backend's own order.
     @Published private(set) var liveLog = ""
+    /// The last failure came from starting the backend itself, so the panel
+    /// offers a Retry.
+    @Published private(set) var backendStartFailed = false
     @Published private(set) var outputPaths: [String] = []
 
     // Assets browser.
@@ -46,9 +49,7 @@ final class GlinaModel: ObservableObject {
         refreshAssets()
     }
 
-    private let runner = GlinaCommandRunner()
-    private var pendingChunks: [Int: String] = [:]
-    private var nextSequence = 1
+    private let backend = GlinaBackendProcess()
 
     /// Launch flags: `--assets-dir PATH` selects the output directory,
     /// `--play PATH` opens the window already on that element.
@@ -73,16 +74,14 @@ final class GlinaModel: ObservableObject {
     }
 
     var output: String {
-        guard let result else { return "" }
-        let stdout = result.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
-        let stderr = result.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
-        return [stdout, stderr].filter { !$0.isEmpty }.joined(separator: "\n\n")
+        result?.document ?? ""
     }
 
     func select(_ action: GlinaAction) {
         draft.action = action
         result = nil
         failure = nil
+        backendStartFailed = false
         liveLog = ""
         outputPaths = []
     }
@@ -91,66 +90,53 @@ final class GlinaModel: ObservableObject {
         guard !isRunning else { return }
         if let problem = draft.validationProblem {
             failure = problem
+            backendStartFailed = false
             return
         }
         isRunning = true
         result = nil
         failure = nil
+        backendStartFailed = false
         liveLog = ""
         outputPaths = []
-        pendingChunks = [:]
-        nextSequence = 1
         startedAt = Date()
         defer { isRunning = false }
         do {
-            let arguments = draft.arguments
-            let result = try await runner.run(arguments: arguments) { [weak self] order, chunk in
-                Task { @MainActor [weak self] in self?.appendChunk(order, chunk) }
+            let client = try await makeClient()
+            let outcome: GlinaOutcome
+            switch draft.action {
+            case .sculpt:
+                outcome = try await client.sculpt(prompt: draft.prompt, rounds: draft.rounds, onLog: appendLog)
+            case .verify:
+                outcome = try await client.verify(path: draft.assetPath, onLog: appendLog)
+            case .config:
+                outcome = try await client.config()
+            case .blenderHealth:
+                outcome = try await client.blenderHealth()
+            case .welesTools:
+                outcome = try await client.welesTools()
+            case .assets:
+                return
             }
-            self.result = result
-            liveLog = combined(result)
-            outputPaths = Self.extractPaths(from: result.standardOutput, action: draft.action)
-            if result.status != 0 {
-                let sentence = result.standardError
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                failure = sentence.isEmpty
-                    ? "Glina exited with status \(result.status)."
-                    : sentence
-            }
+            result = outcome
+            outputPaths = outcome.paths
+            failure = outcome.refusal
+        } catch let error as GlinaBackendError {
+            backendStartFailed = true
+            failure = error.errorDescription
         } catch {
             failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 
-    /// The exact command of the last completed run — what actually executed,
-    /// not a preview that could still be edited.
-    func appendChunk(_ order: Int, _ chunk: String) {
-        pendingChunks[order] = chunk
-        while let next = pendingChunks.removeValue(forKey: nextSequence) {
-            liveLog += next
-            nextSequence += 1
-        }
+    private func makeClient() async throws -> GlinaClient {
+        GlinaClient(baseURL: try await backend.endpoint())
     }
 
-    private func combined(_ result: GlinaCommandResult) -> String {
-        let stdout = result.standardOutput
-        let stderr = result.standardError
-        return stdout + stderr
-    }
-
-    /// Sculpt and verify print one JSON document; surface the artifact paths
-    /// it names so the operator can go straight to Finder or Quick Look.
-    static func extractPaths(from standardOutput: String, action: GlinaAction) -> [String] {
-        guard action == .sculpt || action == .verify,
-              let data = standardOutput.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data),
-              let object = json as? [String: Any]
-        else { return [] }
-        var paths: [String] = []
-        for key in ["outPath", "file", "path"] {
-            if let value = object[key] as? String { paths.append(value) }
-        }
-        return paths
+    /// Appends one streamed log event; NDJSON already arrives in the
+    /// backend's own order, so no resequencing is needed.
+    private func appendLog(_ chunk: String) {
+        liveLog += chunk
     }
 
     // MARK: - Gallery browsing
@@ -272,9 +258,9 @@ final class GlinaModel: ObservableObject {
 
     // MARK: - Animation preview
     //
-    // The app never renders glTF itself: `glina preview-anim` walks the same
-    // Blender MCP bridge as every other command and hands back a looping GIF,
-    // which NSImageView plays inline.
+    // The app never renders glTF itself: the backend walks the same Blender
+    // MCP bridge as every other workflow and hands back a looping GIF, which
+    // NSImageView plays inline.
 
     @Published var animationClip = ""
     @Published private(set) var isRenderingAnimation = false
@@ -287,26 +273,23 @@ final class GlinaModel: ObservableObject {
         isRenderingAnimation = true
         animationNote = nil
         defer { isRenderingAnimation = false }
-        var arguments = ["preview-anim", glbURL.path]
         let clip = animationClip.trimmingCharacters(in: .whitespaces)
-        if !clip.isEmpty { arguments += ["--clip", clip] }
         do {
-            let result = try await runner.run(arguments: arguments) { _, _ in }
-            guard result.status == 0 else {
-                animationNote = Self.tail(result.standardError.isEmpty ? result.standardOutput : result.standardError)
+            let client = try await makeClient()
+            let outcome = try await client.previewAnim(path: glbURL.path, clip: clip) { _ in }
+            guard outcome.status == 0, outcome.refusal == nil else {
+                animationNote = Self.tail(outcome.refusal ?? "The render did not finish.")
                 return
             }
-            if let data = result.standardOutput.data(using: .utf8),
-               let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let outPath = doc["outPath"] as? String {
+            if let outPath = outcome.paths.first {
                 animatedPreviewURL = URL(fileURLWithPath: outPath)
                 refreshAssets()
                 animationNote = "rendered " + outPath
             } else {
-                animationNote = Self.tail(result.standardOutput)
+                animationNote = Self.tail(outcome.document)
             }
         } catch {
-            animationNote = error.localizedDescription
+            animationNote = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 

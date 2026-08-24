@@ -19,7 +19,6 @@ struct GlinaRootView: View {
                 Divider()
                 ScrollView {
                     VStack(alignment: .leading, spacing: WisentDesign.Space.x4) {
-                        commandPreview
                         content
                     }
                     .padding(WisentDesign.Space.x6)
@@ -70,7 +69,7 @@ struct GlinaRootView: View {
                 .buttonStyle(.plain)
             }
             Spacer()
-            Text("Runs the installed `glina` CLI. Blender stays behind the Blender MCP server, secrets behind Skarbiec, models behind Brama.")
+            Text("Glina runs as a local backend. Blender stays behind the Blender MCP server, secrets behind Skarbiec, models behind Brama.")
                 .font(WisentTypeScale.caption())
                 .foregroundStyle(WisentDesign.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -89,7 +88,7 @@ struct GlinaRootView: View {
             outputPathsPanel
         case .verify:
             verifyForm
-            resultPanel(live: false)
+            resultPanel(live: true)
             outputPathsPanel
         case .config, .blenderHealth, .welesTools:
             simpleForm
@@ -168,7 +167,7 @@ struct GlinaRootView: View {
     private var detailText: String {
         switch model.draft.action {
         case .config:
-            return "Validates the pipeline config and resolves Skarbiec references; the CLI redacts every secret before printing."
+            return "Validates the pipeline config and resolves Skarbiec references; every secret is redacted before anything is shown."
         case .blenderHealth:
             return "MCP handshake plus an execute probe against the live Blender session."
         default:
@@ -176,33 +175,25 @@ struct GlinaRootView: View {
         }
     }
 
-    // MARK: - Command + results
-
-    private var commandPreview: some View {
-        WisentSectionBox(title: "Command", detail: "The exact invocation this window runs.") {
-            Text(model.draft.commandLine)
-                .font(WisentTypeScale.identifier())
-                .foregroundStyle(WisentDesign.ink)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
+    // MARK: - Results
 
     private func resultPanel(live: Bool) -> some View {
-        let text = live ? (model.isRunning ? model.liveLog : model.output) : model.output
+        let text = live && !model.liveLog.isEmpty ? model.liveLog : model.output
         return Group {
             if let failure = model.failure {
                 WisentAlertPanel(
                     tone: .danger,
-                    title: "Glina refused the workflow",
+                    title: model.backendStartFailed ? "Backend unavailable" : "Glina refused the workflow",
                     detail: failure,
-                    command: model.draft.commandLine
+                    actions: model.backendStartFailed
+                        ? [WisentAction("Retry", symbol: "arrow.clockwise") { Task { await model.run() } }]
+                        : []
                 )
             }
             if !text.isEmpty {
                 WisentSectionBox(
-                    title: model.result?.status == 0 ? "Result" : "Command output",
-                    detail: live ? "Combined stdout and stderr as the process writes them." : nil
+                    title: model.result?.status == 0 ? "Result" : "Output",
+                    detail: live ? "The backend's own output as it streams in." : nil
                 ) {
                     ScrollView(.vertical) {
                         Text(text)
@@ -216,12 +207,12 @@ struct GlinaRootView: View {
             } else if model.isRunning {
                 WisentLoadingPanel(
                     title: "Glina is running",
-                    detail: "Sculpting may take many rounds. The command's own output is the source of progress and errors."
+                    detail: "Sculpting may take many rounds. The live log is the source of progress and errors."
                 )
             } else {
                 WisentEmptyPanel(
                     title: "No result yet",
-                    detail: "Fill the required fields and run this workflow. Artifacts stay at the paths the CLI reports.",
+                    detail: "Fill the required fields and run this workflow. Artifacts stay at the paths Glina reports.",
                     symbol: model.draft.action.symbol
                 )
             }
@@ -231,7 +222,7 @@ struct GlinaRootView: View {
     @ViewBuilder
     private var outputPathsPanel: some View {
         if !model.outputPaths.isEmpty {
-            WisentSectionBox(title: "Output", detail: "Paths reported by the CLI.") {
+            WisentSectionBox(title: "Output", detail: "Paths reported by Glina.") {
                 VStack(alignment: .leading, spacing: WisentDesign.Space.x2) {
                     ForEach(model.outputPaths, id: \.self) { path in
                         HStack(spacing: WisentDesign.Space.x3) {
