@@ -141,24 +141,28 @@ struct GlinaAssetsView: View {
     /// The animation workflow for one selected .glb: the operator names a
     /// clip (or leaves empty for the CLI's longest), the glina CLI renders
     /// through Blender, and the looping GIF plays right below.
+    /// Two independent entries: "Animate" on a .glb opens the render form,
+    /// "Play" on a .gif plays it. Either may exist without the other.
     @ViewBuilder
     private var animationSection: some View {
-        if let glb = model.selectedGLB {
+        if model.selectedGLB != nil || model.animatedPreviewURL != nil {
             WisentSectionBox(
                 title: "Animation preview",
                 detail: "Runs `glina preview-anim` — Blender renders the clip, this window plays it."
             ) {
-                Text(glb.lastPathComponent)
-                    .font(WisentTypeScale.identifier())
-                    .textSelection(.enabled)
-                HStack(spacing: WisentDesign.Space.x3) {
-                    TextField("clip (empty = longest)", text: $model.animationClip)
+                if let glb = model.selectedGLB {
+                    Text(glb.lastPathComponent)
                         .font(WisentTypeScale.identifier())
-                        .frame(maxWidth: 240)
-                    Button(model.isRenderingAnimation ? "Rendering…" : "Render animation") {
-                        Task { await model.renderAnimationPreview(for: glb) }
+                        .textSelection(.enabled)
+                    HStack(spacing: WisentDesign.Space.x3) {
+                        TextField("clip (empty = longest)", text: $model.animationClip)
+                            .font(WisentTypeScale.identifier())
+                            .frame(maxWidth: 240)
+                        Button(model.isRenderingAnimation ? "Rendering…" : "Render animation") {
+                            Task { await model.renderAnimationPreview(for: glb) }
+                        }
+                        .disabled(model.isRenderingAnimation)
                     }
-                    .disabled(model.isRenderingAnimation)
                 }
                 if let note = model.animationNote, !note.isEmpty {
                     Text(note)
@@ -170,6 +174,10 @@ struct GlinaAssetsView: View {
                     AnimatedGifPlayer(url: gif)
                         .frame(maxWidth: 420, maxHeight: 320)
                         .frame(maxWidth: .infinity, alignment: .center)
+                    HStack {
+                        Spacer()
+                        Button("Close preview") { model.animatedPreviewURL = nil }
+                    }
                 }
             }
         }
