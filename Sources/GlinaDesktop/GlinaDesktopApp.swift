@@ -18,6 +18,24 @@ struct GlinaDesktopApp: App {
         WindowGroup("Glina") {
             GlinaRootView(model: model)
                 .onAppear { model.applyLaunchOptions() }
+                // Every fact Glina reports is selectable, and therefore
+                // copyable. This window exists to state things a person then
+                // quotes somewhere else — an assets directory, an output path
+                // the backend just wrote, a .glb filename, a failure sentence,
+                // the backend's streamed log — and SwiftUI's `Text` refuses
+                // selection on macOS unless a view asks for it, which left
+                // most of this window's text dead to Cmd-C while six sites had
+                // been fixed one at a time.
+                //
+                // `.textSelection` travels through the environment, so one call
+                // on the window's whole content covers every screen, present
+                // and future, including the result, loading and empty panels
+                // that `GlinaRootView` swaps between as branches. That is why
+                // the rule is here and not inside the root view: those panels
+                // are siblings of each other, so no inner view sees them all.
+                // The six per-site calls are removed; keeping them beside the
+                // rule would leave two places answering the same question.
+                .textSelection(.enabled)
         }
         .defaultSize(width: 1_240, height: 820)
         .windowResizability(.contentMinSize)

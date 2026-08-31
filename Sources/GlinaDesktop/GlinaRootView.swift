@@ -199,7 +199,6 @@ struct GlinaRootView: View {
                         Text(text)
                             .font(WisentTypeScale.identifier())
                             .foregroundStyle(WisentDesign.ink)
-                            .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(minHeight: 120, maxHeight: 420)
@@ -231,7 +230,6 @@ struct GlinaRootView: View {
                                 .foregroundStyle(WisentDesign.ink)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
-                                .textSelection(.enabled)
                             Spacer(minLength: 0)
                             if FileManager.default.fileExists(atPath: path) {
                                 Button("Quick Look") { preview(path: path) }

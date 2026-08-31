@@ -43,7 +43,6 @@ struct GlinaAssetsView: View {
                         .foregroundStyle(model.assetsDirectory == nil ? WisentDesign.muted : WisentDesign.ink)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .textSelection(.enabled)
                     Spacer(minLength: 0)
                     Button("Choose Directory") { model.chooseAssetsDirectory() }
                     if model.assetsDirectory != nil {
@@ -115,7 +114,6 @@ struct GlinaAssetsView: View {
                 Text(url.lastPathComponent)
                     .font(WisentTypeScale.bodyStrong())
                     .foregroundStyle(WisentDesign.ink)
-                    .textSelection(.enabled)
                 Spacer(minLength: 0)
                 if url.pathExtension.lowercased() == "glb" {
                     Button("Animate this") { model.selectedGLB = url }
@@ -229,7 +227,6 @@ struct GlinaAssetsView: View {
                 if let glb = model.selectedGLB {
                     Text(glb.lastPathComponent)
                         .font(WisentTypeScale.identifier())
-                        .textSelection(.enabled)
                     HStack(spacing: WisentDesign.Space.x3) {
                         TextField("clip (empty = longest)", text: $model.animationClip)
                             .font(WisentTypeScale.identifier())
@@ -244,7 +241,6 @@ struct GlinaAssetsView: View {
                     Text(note)
                         .font(WisentTypeScale.caption())
                         .foregroundStyle(WisentDesign.secondary)
-                        .textSelection(.enabled)
                 }
                 if let gif = model.animatedPreviewURL {
                     AnimatedGifPlayer(url: gif)
