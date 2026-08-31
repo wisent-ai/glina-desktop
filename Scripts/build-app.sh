@@ -25,13 +25,37 @@ mkdir -p "$MACOS" "$FRAMEWORKS" "$RESOURCES"
 install -m 0644 "$ROOT/App/Info.plist" "$CONTENTS/Info.plist"
 plutil -replace CFBundleShortVersionString -string "$PRODUCT_VERSION" "$CONTENTS/Info.plist"
 plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$CONTENTS/Info.plist"
-if [ -n "${WISENT_UPDATE_FEED_URL:-}" ]; then
-  case "$WISENT_UPDATE_FEED_URL" in
-    https://*) ;;
-    *) printf 'Update feed must use HTTPS: %s\n' "$WISENT_UPDATE_FEED_URL" >&2; exit 1 ;;
-  esac
-  plutil -replace SUFeedURL -string "$WISENT_UPDATE_FEED_URL" "$CONTENTS/Info.plist"
+# The feed URL already exists in this repository, in
+# .wisent-desktop-release.json - the release manifest wisent-desktop-update
+# reads. Until 2026-08-31 this script stamped SUFeedURL only from
+# WISENT_UPDATE_FEED_URL, so every build that did not export that variable
+# shipped the empty SUFeedURL that App/Info.plist carries: the installed 0.1.1
+# bundle in ~/Applications has an empty SUFeedURL. Sparkle with no feed URL
+# issues no request, so "Check for Updates…" did nothing at all.
+#
+# The manifest is now the default, the environment variable stays an override
+# for a staging feed, and a bundle that would ship without a feed URL fails the
+# build instead of being discovered months later by a user who never got an
+# update.
+RELEASE_MANIFEST="$ROOT/.wisent-desktop-release.json"
+UPDATE_FEED_URL=${WISENT_UPDATE_FEED_URL:-}
+if [ -z "$UPDATE_FEED_URL" ] && [ -f "$RELEASE_MANIFEST" ]; then
+  command -v jq >/dev/null 2>&1 || {
+    printf 'jq is required to read %s\n' "$RELEASE_MANIFEST" >&2
+    exit 1
+  }
+  UPDATE_FEED_URL=$(jq -r '.feed_url // empty' "$RELEASE_MANIFEST")
 fi
+case "$UPDATE_FEED_URL" in
+  https://*) ;;
+  '')
+    printf 'No update feed URL: set WISENT_UPDATE_FEED_URL, or .feed_url in %s. An app with an empty SUFeedURL can never check for updates.\n' "$RELEASE_MANIFEST" >&2
+    exit 1 ;;
+  *)
+    printf 'Update feed must use HTTPS: %s\n' "$UPDATE_FEED_URL" >&2
+    exit 1 ;;
+esac
+plutil -replace SUFeedURL -string "$UPDATE_FEED_URL" "$CONTENTS/Info.plist"
 if [ -f "$ROOT/App/AppIcon.icns" ]; then
   install -m 0644 "$ROOT/App/AppIcon.icns" "$RESOURCES/AppIcon.icns"
 else
