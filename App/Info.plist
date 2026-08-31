@@ -1,23 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>CFBundleName</key><string>Glina</string>
-<key>CFBundleDisplayName</key><string>Glina</string>
-<key>CFBundleExecutable</key><string>GlinaDesktop</string>
-<key>CFBundleIconFile</key><string>AppIcon</string>
-<key>CFBundleIdentifier</key><string>ai.wisent.glina.desktop</string>
-<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-<key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.1.1</string>
-<key>CFBundleVersion</key><string>2</string>
-<key>SUFeedURL</key><string></string>
-<key>SUPublicEDKey</key><string>ExF+QFs5YpAy5secmN8aFt7xJY7DJUlAd1qbkwyJJ0M=</string>
-<key>SUEnableAutomaticChecks</key><true/>
-<key>SUScheduledCheckInterval</key><integer>86400</integer>
-<key>SUVerifyUpdateBeforeExtraction</key><true/>
-<key>SURequireSignedFeed</key><true/>
-<key>SUAutomaticallyUpdate</key><true/>
-<key>LSMinimumSystemVersion</key><string>14.0</string>
-<key>NSHighResolutionCapable</key><true/>
-<key>NSPrincipalClass</key><string>NSApplication</string>
-</dict></plist>
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>Glina</string>
+	<key>CFBundleExecutable</key>
+	<string>GlinaDesktop</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>ai.wisent.glina.desktop</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Glina</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.1</string>
+	<key>CFBundleVersion</key>
+	<string>2</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>SUAllowsAutomaticUpdates</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string></string>
+	<key>SUPublicEDKey</key>
+	<string>ExF+QFs5YpAy5secmN8aFt7xJY7DJUlAd1qbkwyJJ0M=</string>
+	<key>SURequireSignedFeed</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
+</dict>
+</plist>
