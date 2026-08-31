@@ -96,3 +96,14 @@ ditto "$APP" "$INSTALLED"
 "$LSREGISTER" -u "$APP" >/dev/null 2>&1 || true
 "$LSREGISTER" -f "$INSTALLED" >/dev/null 2>&1 || true
 echo "Installed $INSTALLED"
+# An install that does not restart is a silent no-op for anyone already running
+# the app: the bundle on disk is new, the process in front of the operator is
+# the old binary, and every file along the way looks correct. Ten sibling
+# repositories already end here; this one did not, so a fix shipped by
+# `build-app.sh` reached Glina only after the operator happened to quit it.
+# `--if-running` leaves a stopped app stopped, and the helper launches with
+# `open -g`, so nothing steals the foreground.
+RESTART_APP=${WISENT_RESTART_APP:-"$ROOT/Scripts/wisent-restart-app"}
+if [ "${WISENT_RESTART_AFTER_BUILD:-1}" != 0 ] && [ -x "$RESTART_APP" ]; then
+    "$RESTART_APP" --if-running "$INSTALLED"
+fi
