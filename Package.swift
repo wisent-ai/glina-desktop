@@ -13,7 +13,7 @@ let package = Package(
         // progress, and the events the funnel is measured from — so this app
         // states its three screens and observes its own first success, and
         // nothing else.
-        .package(url: "https://github.com/wisent-ai/echo.git", exact: "0.1.2"),
+        .package(url: "https://github.com/wisent-ai/echo.git", exact: "0.3.0"),
     ],
     targets: [
         .executableTarget(

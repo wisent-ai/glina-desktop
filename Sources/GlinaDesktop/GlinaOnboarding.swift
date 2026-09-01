@@ -277,39 +277,22 @@ final class GlinaOnboarding: ObservableObject {
         return created
     }
 
-    /// Where the journey JSON actually is, in both layouts Glina ships in.
-    ///
-    /// `Bundle.module` alone crashes the shipped app. SwiftPM's generated
-    /// accessor looks for `Bundle.main.bundleURL/GlinaDesktop_GlinaDesktop.bundle`
-    /// — `Glina.app/GlinaDesktop_GlinaDesktop.bundle` — but `build-app.sh` copies
-    /// resource bundles into `Glina.app/Contents/Resources/`. The lookup misses,
-    /// the accessor falls through to the absolute `.build` path baked in at
-    /// compile time, that path does not exist on an operator's machine, and the
-    /// accessor calls `fatalError`. `swift build` never catches it because
-    /// running out of `.build` always resolves. `Bundle.main.resourceURL` is
-    /// `Contents/Resources` when packaged and the executable's own directory
-    /// under `swift build`, and the bundle is in both, so this leg answers first
-    /// and `Bundle.module` — whose mere evaluation is the trap — stays last.
-    private nonisolated static func resourceBundle() -> Bundle {
-        if let url = Bundle.main.resourceURL?
-            .appendingPathComponent("GlinaDesktop_GlinaDesktop.bundle"),
-           let bundle = Bundle(url: url) {
-            return bundle
-        }
-        return Bundle.module
-    }
-
     /// The bundled definition, checked against the identity this build can
     /// finish.
     private nonisolated static func loadFallback() throws -> JourneyBundle {
-        guard let url = resourceBundle().url(
-            forResource: GlinaJourney.resourceName,
-            withExtension: "json"
-        ) else {
-            throw JourneyClientError.invalid("bundled fallback")
-        }
+        // One loader for the whole fleet: JourneyResource resolves the
+        // packaged bundle and throws a named error saying which paths it
+        // tried, instead of SwiftPM's accessor trapping on a machine that
+        // never built this binary.
+        let definition = try String(
+            decoding: JourneyResource.definitionData(
+                resource: GlinaJourney.resourceName,
+                bundleName: "GlinaDesktop_GlinaDesktop.bundle"
+            ),
+            as: UTF8.self
+        )
         let bundle = try JourneyRouter.makeBundle(
-            canonicalDefinition: try String(contentsOf: url, encoding: .utf8),
+            canonicalDefinition: definition,
             journeyVersionId: GlinaJourney.fallbackVersionID
         )
         guard bundle.definition.journeyVersion == GlinaJourney.journeyVersion,
