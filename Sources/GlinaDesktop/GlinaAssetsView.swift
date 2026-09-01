@@ -222,7 +222,7 @@ struct GlinaAssetsView: View {
         if model.selectedGLB != nil || model.animatedPreviewURL != nil {
             WisentSectionBox(
                 title: "Animation preview",
-                detail: "Blender renders the clip; the looping GIF plays here."
+                detail: nil
             ) {
                 if let glb = model.selectedGLB {
                     Text(glb.lastPathComponent)

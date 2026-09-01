@@ -99,7 +99,7 @@ actor GlinaBackendProcess {
                 guard !data.isEmpty else {
                     handle.readabilityHandler = nil
                     finish(.failure(GlinaBackendError.failedToStart(
-                        "It exited before reporting its port." + state.stderrSuffix()
+                        "It stopped unexpectedly." + state.stderrSuffix()
                     )))
                     return
                 }
@@ -110,14 +110,14 @@ actor GlinaBackendProcess {
                     finish(.success(port))
                 } else {
                     finish(.failure(GlinaBackendError.failedToStart(
-                        "Its ready line could not be read." + state.stderrSuffix()
+                        "It returned an unreadable response." + state.stderrSuffix()
                     )))
                 }
             }
             state.scheduleTimeout {
                 process.terminate()
                 finish(.failure(GlinaBackendError.failedToStart(
-                    "It did not report a port within twenty seconds." + state.stderrSuffix()
+                    "It did not start within twenty seconds." + state.stderrSuffix()
                 )))
             }
         }
@@ -224,9 +224,9 @@ enum GlinaBackendError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .executableMissing:
-            return "The Glina backend could not start. Glina is not installed in any of the searched locations."
+            return "Glina is not installed."
         case .failedToStart(let reason):
-            return "The Glina backend could not start. \(reason)"
+            return "Glina could not start. \(reason)"
         }
     }
 }

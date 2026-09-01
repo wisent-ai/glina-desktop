@@ -14,7 +14,7 @@ enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
         case .verify: return "Verify"
         case .config: return "Check Config"
         case .blenderHealth: return "Blender Health"
-        case .welesTools: return "Weles Tools"
+        case .welesTools: return "Browser Tools"
         case .assets: return "Assets"
         }
     }

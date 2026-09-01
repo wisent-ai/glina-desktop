@@ -69,10 +69,6 @@ struct GlinaRootView: View {
                 .buttonStyle(.plain)
             }
             Spacer()
-            Text("Glina runs as a local backend. Blender stays behind the Blender MCP server, secrets behind Skarbiec, models behind Brama.")
-                .font(WisentTypeScale.caption())
-                .foregroundStyle(WisentDesign.muted)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(WisentDesign.Space.x4)
         .frame(width: 220)
@@ -91,7 +87,6 @@ struct GlinaRootView: View {
             resultPanel(live: true)
             outputPathsPanel
         case .config, .blenderHealth, .welesTools:
-            simpleForm
             resultPanel(live: false)
         case .assets:
             GlinaAssetsView(model: model)
@@ -103,7 +98,7 @@ struct GlinaRootView: View {
     private var sculptForm: some View {
         WisentSectionBox(
             title: "Prompt",
-            detail: "What to sculpt. The LLM drives Blender through MCP round by round until the GLB passes the gate."
+            detail: nil
         ) {
             VStack(spacing: WisentDesign.Space.x3) {
                 TextField("gothic dwarven tower, low-poly", text: $model.draft.prompt, axis: .vertical)
@@ -126,7 +121,7 @@ struct GlinaRootView: View {
     private var verifyForm: some View {
         WisentSectionBox(
             title: "Asset",
-            detail: "The .glb file the structural quality gate inspects."
+            detail: nil
         ) {
             HStack(spacing: WisentDesign.Space.x3) {
                 TextField("/path/to/asset.glb", text: $model.draft.assetPath)
@@ -148,32 +143,6 @@ struct GlinaRootView: View {
         }
     }
 
-    // MARK: - Config / health / tools
-
-    private var simpleForm: some View {
-        WisentSectionBox(title: detailTitle, detail: detailText) {
-            EmptyView()
-        }
-    }
-
-    private var detailTitle: String {
-        switch model.draft.action {
-        case .config: return "Configuration"
-        case .blenderHealth: return "Blender session"
-        default: return "Browser layer"
-        }
-    }
-
-    private var detailText: String {
-        switch model.draft.action {
-        case .config:
-            return "Validates the pipeline config and resolves Skarbiec references; every secret is redacted before anything is shown."
-        case .blenderHealth:
-            return "MCP handshake plus an execute probe against the live Blender session."
-        default:
-            return "Lists the browser-layer tools the Weles MCP server exposes."
-        }
-    }
 
     // MARK: - Results
 
@@ -183,7 +152,7 @@ struct GlinaRootView: View {
             if let failure = model.failure {
                 WisentAlertPanel(
                     tone: .danger,
-                    title: model.backendStartFailed ? "Backend unavailable" : "Glina refused the workflow",
+                    title: model.backendStartFailed ? "Glina unavailable" : "Run failed",
                     detail: failure,
                     actions: model.backendStartFailed
                         ? [WisentAction("Retry", symbol: "arrow.clockwise") { Task { await model.run() } }]
@@ -193,7 +162,7 @@ struct GlinaRootView: View {
             if !text.isEmpty {
                 WisentSectionBox(
                     title: model.result?.status == 0 ? "Result" : "Output",
-                    detail: live ? "The backend's own output as it streams in." : nil
+                    detail: nil
                 ) {
                     ScrollView(.vertical) {
                         Text(text)

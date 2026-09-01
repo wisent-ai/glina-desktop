@@ -22,9 +22,9 @@ enum GlinaClientError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notHTTP:
-            return "The Glina backend sent a response the app could not read."
+            return "Glina returned an unreadable response."
         case .streamClosedEarly:
-            return "The Glina backend closed the stream before reporting a result."
+            return "The run ended before a result was available."
         }
     }
 }
@@ -61,7 +61,7 @@ struct GlinaClient: Sendable {
             status: 1,
             document: outcome.document,
             stderrText: "",
-            refusal: (object["error"] as? String) ?? "The Blender session did not answer the probe.",
+            refusal: (object["error"] as? String) ?? "The Blender session did not answer.",
             paths: []
         )
     }
@@ -95,7 +95,7 @@ struct GlinaClient: Sendable {
                 document: document,
                 stderrText: "",
                 refusal: (object?["error"] as? String)
-                    ?? "The Glina backend answered with status \(http.statusCode).",
+                    ?? "Glina returned an error.",
                 paths: []
             )
         }
@@ -134,7 +134,7 @@ struct GlinaClient: Sendable {
                 document: Self.pretty(object, fallback: data),
                 stderrText: "",
                 refusal: (object?["error"] as? String)
-                    ?? "The Glina backend answered with status \(http.statusCode).",
+                    ?? "Glina returned an error.",
                 paths: []
             )
         }
@@ -168,7 +168,7 @@ struct GlinaClient: Sendable {
         } else {
             let trimmed = stderrText.trimmingCharacters(in: .whitespacesAndNewlines)
             refusal = trimmed.isEmpty
-                ? "The Glina backend reported status \(status)."
+                ? "The run failed."
                 : trimmed
         }
         return GlinaOutcome(
