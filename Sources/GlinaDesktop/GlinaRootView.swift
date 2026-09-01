@@ -4,6 +4,12 @@ import WisentDesignSystem
 
 struct GlinaRootView: View {
     @ObservedObject var model: GlinaModel
+    @ObservedObject var onboarding: GlinaOnboarding
+
+    /// How the last replay from Check Config ended. Held by the screen rather
+    /// than by the journey so leaving Check Config clears the line instead of
+    /// carrying a stale "Started." onto Sculpt.
+    @State private var walkthrough: WisentMutationOutcome = .idle
 
     var body: some View {
         WisentScreen(
@@ -28,6 +34,32 @@ struct GlinaRootView: View {
             }
         }
         .frame(minWidth: 1_100, minHeight: 720)
+        .task {
+            await onboarding.start()
+        }
+        // First success is observed, never asserted: the walkthrough finishes
+        // when Glina reports a `.glb` it wrote, not when a button is pressed.
+        .onChange(of: model.sculptedAsset) { _, asset in
+            guard let asset else { return }
+            Task { await onboarding.observeSculptedAsset(path: asset) }
+        }
+        .overlay {
+            if onboarding.isPresented {
+                GlinaOnboardingOverlay(
+                    screen: onboarding.screen,
+                    errorMessage: onboarding.errorMessage,
+                    isWorking: onboarding.isWorking,
+                    isFinalScreen: onboarding.isFinalScreen,
+                    stepNumber: onboarding.stepNumber,
+                    advance: { Task { await onboarding.advance() } },
+                    startSculpting: {
+                        model.select(.sculpt)
+                        onboarding.prepareToSculpt()
+                    },
+                    retry: { Task { await onboarding.retry() } }
+                )
+            }
+        }
     }
 
     private var screenActions: [WisentAction] {
@@ -86,11 +118,58 @@ struct GlinaRootView: View {
             verifyForm
             resultPanel(live: true)
             outputPathsPanel
-        case .config, .blenderHealth, .welesTools:
+        // Glina has no Settings window and no preferences pane: every screen in
+        // this sidebar runs one `glina` command and reports its answer. Check
+        // Config is the operator-facing one — it is where someone goes to ask
+        // what this installation is actually configured to do — so the one
+        // control in the app that writes something instead of reporting
+        // something sits last on it, under the facts it does not change.
+        case .config:
+            resultPanel(live: false)
+            firstRunWalkthrough
+        case .blenderHealth, .welesTools:
             resultPanel(live: false)
         case .assets:
             GlinaAssetsView(model: model)
         }
+    }
+
+    // MARK: - First-run walkthrough
+
+    private var firstRunWalkthrough: some View {
+        WisentSectionBox(
+            title: "First-run walkthrough",
+            detail: "See the walkthrough this product shows on a first run."
+        ) {
+            VStack(alignment: .leading, spacing: WisentDesign.Space.x3) {
+                Button("Show it again") { showWalkthroughAgain() }
+                    .buttonStyle(WisentSecondaryButtonStyle())
+                    .disabled(isReplaying)
+                if walkthrough != .idle {
+                    WisentMutationBar(outcome: walkthrough) { walkthrough = .idle }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var isReplaying: Bool { onboarding.isWorking || walkthrough.isWorking }
+
+    /// Resets the journey and lets the window present it again.
+    ///
+    /// Nothing here reaches for a sheet: the walkthrough has exactly one
+    /// presentation in this app — the overlay this view stacks over the whole
+    /// window — and the reset is what puts it back, in this session, because
+    /// that is what was asked for rather than a note to look again after the
+    /// next launch.
+    ///
+    /// The local `.working` line is what closes the control, not
+    /// `onboarding.isWorking`: the journey does not raise that flag until the
+    /// task below is scheduled, and a second press lands in the gap.
+    private func showWalkthroughAgain() {
+        guard !isReplaying else { return }
+        walkthrough = .working("Starting the walkthrough…")
+        Task { walkthrough = await onboarding.replay() }
     }
 
     // MARK: - Sculpt

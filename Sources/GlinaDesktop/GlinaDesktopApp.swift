@@ -11,9 +11,10 @@ import WisentDesktopUpdate
 /// both and remain a single call site.
 struct GlinaWindowContent: View {
     @ObservedObject var model: GlinaModel
+    @ObservedObject var onboarding: GlinaOnboarding
 
     var body: some View {
-        GlinaRootView(model: model)
+        GlinaRootView(model: model, onboarding: onboarding)
             .onAppear { model.applyLaunchOptions() }
             // Every fact Glina reports is selectable, and therefore
             // copyable. This window exists to state things a person then
@@ -36,12 +37,15 @@ struct GlinaWindowContent: View {
     }
 }
 
-/// Owns the model, so the scene and the fallback window share one instance,
-/// and calls `wisentEnsureWindow` for the launch where the scene produces no
-/// window at all — see that function for the measurements.
+/// Owns the model and the first-run walkthrough, so the scene and the fallback
+/// window share one instance of each — two controllers would present the
+/// walkthrough twice and record two attempts for one launch — and calls
+/// `wisentEnsureWindow` for the launch where the scene produces no window at
+/// all; see that function for the measurements.
 @MainActor
 final class GlinaDesktopAppDelegate: NSObject, NSApplicationDelegate {
     let model = GlinaModel(assetsDirectory: GlinaDesktopAppDelegate.launchAssetsDirectory())
+    let onboarding = GlinaOnboarding()
     private var fallbackWindow: NSWindow?
 
     /// `--assets-dir PATH` preselects the sculpt output directory.
@@ -61,7 +65,7 @@ final class GlinaDesktopAppDelegate: NSObject, NSApplicationDelegate {
                 title: "Glina",
                 size: CGSize(width: 1_240, height: 820)
             ) {
-                GlinaWindowContent(model: self.model)
+                GlinaWindowContent(model: self.model, onboarding: self.onboarding)
             }
         }
     }
@@ -74,7 +78,7 @@ struct GlinaDesktopApp: App {
 
     var body: some Scene {
         WindowGroup("Glina") {
-            GlinaWindowContent(model: delegate.model)
+            GlinaWindowContent(model: delegate.model, onboarding: delegate.onboarding)
         }
         .defaultSize(width: 1_240, height: 820)
         .windowResizability(.contentMinSize)

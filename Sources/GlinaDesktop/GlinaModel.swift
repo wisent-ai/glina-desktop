@@ -91,6 +91,18 @@ final class GlinaModel: ObservableObject {
         result?.document ?? ""
     }
 
+    /// The `.glb` the last finished sculpt reported, if it reported one.
+    ///
+    /// Glina's own answer is the only evidence that an asset exists: the paths
+    /// come out of the backend's outcome, and a refusal disqualifies the run no
+    /// matter what it printed. Read by the window to observe the first-run
+    /// walkthrough's first success; the model itself has no opinion about
+    /// onboarding.
+    var sculptedAsset: String? {
+        guard draft.action == .sculpt, result != nil, failure == nil else { return nil }
+        return outputPaths.first { $0.lowercased().hasSuffix(".glb") }
+    }
+
     func select(_ action: GlinaAction) {
         draft.action = action
         result = nil

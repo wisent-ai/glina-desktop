@@ -1,0 +1,95 @@
+{
+  "analytics_contract": {
+    "completion_event": "onboarding_completed",
+    "contract_version": "1",
+    "exposure_event": "onboarding_step_viewed",
+    "first_success_event": "onboarding_first_success_observed",
+    "primary_action_event": "onboarding_step_completed",
+    "surface": "macos_first_use"
+  },
+  "entry_screen_id": "promise",
+  "experiment_contract": null,
+  "first_success_fact": "glb_asset_sculpted",
+  "journey_id": "first-use",
+  "journey_version": "2026-09-01.1",
+  "product_id": "glina-desktop",
+  "published_at": "2026-09-01T00:00:00Z",
+  "schema_version": 1,
+  "screens": [
+    {
+      "actions": [
+        "continue"
+      ],
+      "body_key": "glina-desktop.onboarding.promise.body",
+      "completion_evidence": null,
+      "entry_conditions": null,
+      "fallback_screen_id": null,
+      "presentation": {
+        "body": "Glina sculpts a game asset from a text prompt, round by round through a live Blender session, and checks the result against the structural quality gate before you ever open it.",
+        "renderer": "promise",
+        "title": "Describe an asset, get a .glb"
+      },
+      "required": true,
+      "screen_id": "promise",
+      "screen_kind": "promise",
+      "title_key": "glina-desktop.onboarding.promise.title",
+      "transitions": [
+        {
+          "next_screen_id": "command_boundary",
+          "priority": 10,
+          "reason_code": "canonical_progression"
+        }
+      ]
+    },
+    {
+      "actions": [
+        "continue"
+      ],
+      "body_key": "glina-desktop.onboarding.command_boundary.body",
+      "completion_evidence": null,
+      "entry_conditions": null,
+      "fallback_screen_id": null,
+      "presentation": {
+        "body": "Every screen shows the exact glina command it runs and prints that command's output and refusal word for word. Routing, Blender execution and the quality gate stay in the installed CLI, so this window never grows a second opinion about them.",
+        "renderer": "explanation",
+        "title": "This window runs Glina; Glina owns the pipeline"
+      },
+      "required": true,
+      "screen_id": "command_boundary",
+      "screen_kind": "explanation",
+      "title_key": "glina-desktop.onboarding.command_boundary.title",
+      "transitions": [
+        {
+          "next_screen_id": "first_success",
+          "priority": 10,
+          "reason_code": "canonical_progression"
+        }
+      ]
+    },
+    {
+      "actions": [
+        "sculpt_asset"
+      ],
+      "body_key": "glina-desktop.onboarding.first_success.body",
+      "completion_evidence": {
+        "fact": "glb_asset_sculpted",
+        "kind": "fact",
+        "operator": "eq",
+        "value": true
+      },
+      "entry_conditions": null,
+      "fallback_screen_id": null,
+      "presentation": {
+        "body": "Describe the asset on Sculpt and run it. First use finishes when Glina reports the .glb it wrote, which you can preview and reveal from the same screen.",
+        "renderer": "first_success",
+        "title": "Sculpt your first asset"
+      },
+      "required": true,
+      "screen_id": "first_success",
+      "screen_kind": "first_success",
+      "title_key": "glina-desktop.onboarding.first_success.title",
+      "transitions": []
+    }
+  ],
+  "source_revision": "glina-desktop-first-use-2026-09-01"
+}
