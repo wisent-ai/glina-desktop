@@ -6,7 +6,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [.executable(name: "GlinaDesktop", targets: ["GlinaDesktop"])],
     dependencies: [
-        .package(url: "https://github.com/wisent-ai/wisent-components.git", revision: "e52cdda9036b8d44c7ebf51626fcde606e6859b6"),
+        .package(url: "https://github.com/wisent-ai/wisent-components.git", exact: "0.7.0"),
         .package(url: "https://github.com/wisent-ai/wisent-desktop-update.git", exact: "0.2.0"),
         .package(url: "https://github.com/wisent-ai/wisent-errors.git", revision: "b01a0c99766b5c6378ecdbf3921108420ba058f1"),
     ],
