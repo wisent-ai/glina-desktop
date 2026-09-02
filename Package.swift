@@ -6,7 +6,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [.executable(name: "GlinaDesktop", targets: ["GlinaDesktop"])],
     dependencies: [
-        .package(url: "https://github.com/wisent-ai/wisent-components.git", exact: "0.9.0"),
+        .package(url: "https://github.com/wisent-ai/wisent-components.git", exact: "0.9.1"),
         .package(url: "https://github.com/wisent-ai/wisent-desktop-update.git", exact: "0.2.0"),
         .package(url: "https://github.com/wisent-ai/wisent-errors.git", exact: "1.0.0"),
         // The first-run walkthrough. Echo owns the journey contract — routing,

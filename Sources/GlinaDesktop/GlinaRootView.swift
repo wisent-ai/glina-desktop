@@ -65,11 +65,15 @@ struct GlinaRootView: View {
     private var screenActions: [WisentAction] {
         guard model.draft.action != .assets else { return [] }
         return [
+            // The verb stays "Run" while the run is in flight: the shell
+            // shimmers the label in place and refuses a second press, so
+            // `isEnabled` states only what the operator can still fix.
             WisentAction(
-                model.isRunning ? "Running…" : "Run",
+                "Run",
                 symbol: "play.fill",
                 kind: .primary,
-                isEnabled: !model.isRunning && model.draft.validationProblem == nil
+                isEnabled: model.draft.validationProblem == nil,
+                isBusy: model.isRunning
             ) { Task { await model.run() } }
         ]
     }
