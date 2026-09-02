@@ -252,7 +252,7 @@ struct GlinaRootView: View {
                     .frame(minHeight: 120, maxHeight: 420)
                 }
             } else if model.isRunning {
-                WisentLoadingPanel(
+                WisentProgressPanel(
                     title: "Glina is running",
                     detail: "Sculpting may take many rounds. The live log is the source of progress and errors."
                 )
