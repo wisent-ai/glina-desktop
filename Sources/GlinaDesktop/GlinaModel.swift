@@ -36,6 +36,8 @@ final class GlinaModel: ObservableObject {
     /// offers a Retry.
     @Published private(set) var backendStartFailed = false
     @Published private(set) var outputPaths: [String] = []
+    @Published private(set) var assetImport: GlinaAssetImport?
+    @Published private(set) var importedAssetPath: String?
 
     // Assets browser.
     @Published var assetsDirectory: URL?
@@ -91,17 +93,6 @@ final class GlinaModel: ObservableObject {
         result?.document ?? ""
     }
 
-    /// The `.glb` the last finished sculpt reported, if it reported one.
-    ///
-    /// Glina's own answer is the only evidence that an asset exists: the paths
-    /// come out of the backend's outcome, and a refusal disqualifies the run no
-    /// matter what it printed. Read by the window to observe the first-run
-    /// walkthrough's first success; the model itself has no opinion about
-    /// onboarding.
-    var sculptedAsset: String? {
-        guard draft.action == .sculpt, result != nil, failure == nil else { return nil }
-        return outputPaths.first { $0.lowercased().hasSuffix(".glb") }
-    }
 
     func select(_ action: GlinaAction) {
         draft.action = action
@@ -178,6 +169,50 @@ final class GlinaModel: ObservableObject {
                 service: "glina",
                 detail: failure
             )
+        }
+    }
+
+    func importAsset(from source: URL) async {
+        guard !isRunning else { return }
+        isRunning = true
+        result = nil
+        failure = nil
+        assetImport = nil
+        importedAssetPath = nil
+        backendStartFailed = false
+        liveLog = ""
+        outputPaths = []
+        startedAt = Date()
+        defer { isRunning = false }
+        do {
+            let client = try await makeClient()
+            let outcome = try await client.importAsset(source: source.path, onLog: appendLog)
+            result = outcome
+            outputPaths = outcome.paths
+            guard outcome.status == 0,
+                  let data = outcome.document.data(using: .utf8),
+                  let report = try? JSONDecoder().decode(GlinaAssetImport.self, from: data)
+            else {
+                failure = outcome.refusal ?? "Glina returned an unreadable workspace import result."
+                return
+            }
+            assetImport = report
+            guard report.accepted, let destination = report.path else {
+                failure = report.reason ?? "Glina did not accept this asset."
+                return
+            }
+            let url = URL(fileURLWithPath: destination)
+            setAssetsDirectory(url.deletingLastPathComponent())
+            selectedGLB = url
+            draft.assetPath = destination
+            draft.action = .assets
+            outputPaths = [destination]
+            importedAssetPath = destination
+        } catch let error as GlinaBackendError {
+            backendStartFailed = true
+            failure = error.errorDescription
+        } catch {
+            failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 

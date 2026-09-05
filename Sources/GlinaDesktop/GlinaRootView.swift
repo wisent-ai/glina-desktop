@@ -37,12 +37,8 @@ struct GlinaRootView: View {
         .task {
             await onboarding.start()
         }
-        // First success is observed, never asserted: the walkthrough finishes
-        // when Glina reports a `.glb` it wrote, not when a button is pressed.
-        .onChange(of: model.sculptedAsset) { _, asset in
-            guard let asset else { return }
-            Task { await onboarding.observeSculptedAsset(path: asset) }
-        }
+        // First success is observed only after Glina accepts and persists an
+        // import. Picker selection alone never reaches the journey.
         .overlay {
             if onboarding.isPresented {
                 GlinaOnboardingOverlay(
@@ -52,10 +48,7 @@ struct GlinaRootView: View {
                     isFinalScreen: onboarding.isFinalScreen,
                     stepNumber: onboarding.stepNumber,
                     advance: { Task { await onboarding.advance() } },
-                    startSculpting: {
-                        model.select(.sculpt)
-                        onboarding.prepareToSculpt()
-                    },
+                    importAsset: { chooseAssetForImport(onboardingAttempt: true) },
                     retry: { Task { await onboarding.retry() } }
                 )
             }
@@ -118,15 +111,12 @@ struct GlinaRootView: View {
             verifyForm
             resultPanel(live: true)
             outputPathsPanel
-        // Glina has no Settings window and no preferences pane: every screen in
-        // this sidebar runs one `glina` command and reports its answer. Check
-        // Config is the operator-facing one — it is where someone goes to ask
-        // what this installation is actually configured to do — so the one
-        // control in the app that writes something instead of reporting
-        // something sits last on it, under the facts it does not change.
+        // Glina has no separate Settings window. Check Config is the
+        // installation/settings surface, so workspace import and onboarding
+        // replay live below the reported configuration.
         case .config:
             resultPanel(live: false)
-            firstRunWalkthrough
+            workspaceAndFirstRun
         case .blenderHealth, .welesTools:
             resultPanel(live: false)
         case .assets:
@@ -136,21 +126,62 @@ struct GlinaRootView: View {
 
     // MARK: - First-run walkthrough
 
-    private var firstRunWalkthrough: some View {
+    private var workspaceAndFirstRun: some View {
         WisentSectionBox(
-            title: "First-run walkthrough",
-            detail: "See the walkthrough this product shows on a first run."
+            title: "Workspace and first run",
+            detail: "Import an existing GLB through Glina's quality gate, or replay the first-run guide."
         ) {
             VStack(alignment: .leading, spacing: WisentDesign.Space.x3) {
-                Button("Show it again") { showWalkthroughAgain() }
-                    .buttonStyle(WisentSecondaryButtonStyle())
-                    .disabled(isReplaying)
+                HStack(spacing: WisentDesign.Space.x3) {
+                    Button("Import GLB…") { chooseAssetForImport(onboardingAttempt: false) }
+                        .buttonStyle(WisentPrimaryButtonStyle())
+                        .disabled(model.isRunning)
+                    Button("Show first-run guide again") { showWalkthroughAgain() }
+                        .buttonStyle(WisentSecondaryButtonStyle())
+                        .disabled(isReplaying)
+                }
+                if let imported = model.assetImport {
+                    Text(importSummary(imported))
+                        .font(WisentTypeScale.caption())
+                        .foregroundStyle(imported.accepted ? WisentDesign.success : WisentDesign.danger)
+                }
                 if walkthrough != .idle {
                     WisentMutationBar(outcome: walkthrough) { walkthrough = .idle }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func chooseAssetForImport(onboardingAttempt: Bool) {
+        guard !model.isRunning else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
+        panel.message = "Choose a GLB for Glina to validate and keep in its workspace."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        if onboardingAttempt {
+            onboarding.prepareToImport()
+        }
+        Task {
+            await model.importAsset(from: url)
+            if onboardingAttempt {
+                if let destination = model.importedAssetPath {
+                    await onboarding.observeImportedAsset(path: destination)
+                } else {
+                    onboarding.importFailed(reason: model.failure ?? "Glina did not accept this asset.")
+                }
+            }
+        }
+    }
+
+    private func importSummary(_ report: GlinaAssetImport) -> String {
+        if let path = report.path {
+            return "\(report.status.capitalized): \(path)"
+        }
+        return "\(report.status.capitalized): \(report.reason ?? "No workspace state changed.")"
     }
 
     private var isReplaying: Bool { onboarding.isWorking || walkthrough.isWorking }

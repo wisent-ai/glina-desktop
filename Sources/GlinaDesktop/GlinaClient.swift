@@ -15,6 +15,18 @@ struct GlinaOutcome: Sendable {
     let paths: [String]
 }
 
+struct GlinaAssetImport: Decodable, Equatable {
+    let status: String
+    let source: String?
+    let id: String?
+    let path: String?
+    let reason: String?
+
+    var accepted: Bool {
+        status == "imported" || status == "unchanged"
+    }
+}
+
 enum GlinaClientError: LocalizedError {
     case notHTTP
     case streamClosedEarly
@@ -79,6 +91,18 @@ struct GlinaClient: Sendable {
 
     func previewAnim(path: String, clip: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
         try await postStreaming("preview-anim", body: ["path": path, "clip": clip], onLog: onLog)
+    }
+
+    func importAsset(
+        source: String,
+        name: String? = nil,
+        onLog: @escaping @MainActor (String) -> Void
+    ) async throws -> GlinaOutcome {
+        var body: [String: Any] = ["source": source]
+        if let name, !name.isEmpty {
+            body["name"] = name
+        }
+        return try await postStreaming("workspace/import", body: body, onLog: onLog)
     }
 
     // MARK: - Transport

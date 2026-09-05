@@ -1,12 +1,18 @@
 # Glina Desktop
 
 **Your AI sculpts your game assets.** Native macOS workspace for Glina
-text-to-GLB sculpting. It drives the installed `glina` CLI rather than
-reimplementing the Brama routing, Blender MCP execution, or the GLB quality
-gate.
+text-to-GLB sculpting. It starts the installed `glina serve` loopback backend
+and calls product-owned API operations rather than reimplementing Brama routing,
+Blender MCP execution, GLB verification, or workspace persistence.
 
 ## Workflows
 
+
+- Import an existing `.glb` during first use, from Assets, or from Check Config.
+  Glina stages and verifies the exact bytes, persists only an accepted asset,
+  preserves name conflicts, and reports imported, unchanged, conflicting, or
+  rejected. The accepted destination becomes the Assets directory, animation
+  selection, and Verify input.
 - Sculpt a game asset from a text prompt, round by round through a live
   Blender MCP session.
 - Verify a `.glb` against the structural quality gate (valid glTF container,
@@ -18,9 +24,9 @@ gate.
 - Browse an output directory for produced `.glb` and `.png` artifacts with
   Quick Look preview and Reveal in Finder.
 
-Every screen shows the exact `glina` command it runs. Standard output and the
-CLI's own refusal are shown verbatim; the app never paraphrases a gate failure
-and never grows a second interpretation of the pipeline.
+The app shows backend output and refusals rather than paraphrasing the quality
+gate. Long operations stream through `glina serve`; import uses the same
+`pipeline/workspace.js` operation as the CLI.
 
 ## Requirements
 
