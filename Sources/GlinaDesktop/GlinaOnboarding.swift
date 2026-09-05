@@ -10,12 +10,12 @@ import WisentOnboarding
 private enum GlinaJourney {
     static let productID = "glina-desktop"
     static let journeyID = "first-use"
-    static let journeyVersion = "2026-09-01.1"
-    static let firstSuccessFact = "glb_asset_sculpted"
-    static let evidenceRevision = "glina-desktop-first-use-2026-09-01"
-    static let storageNamespace = "ai.wisent.glina.onboarding.2026-09-01.1"
+    static let journeyVersion = "2026-09-05.1"
+    static let firstSuccessFact = "asset_imported"
+    static let evidenceRevision = "glina-desktop-first-use-2026-09-05"
+    static let storageNamespace = "ai.wisent.glina.onboarding.2026-09-05.1"
     static let installationIDKey = "ai.wisent.glina.onboarding.installation-id"
-    static let fallbackVersionID = UUID(uuidString: "3A7C41D6-9F2E-4B58-9C0A-6D5E11B8F204")!
+    static let fallbackVersionID = UUID(uuidString: "86046D82-A27F-4C61-88D7-D96D6275BF51")!
     static let resourceName = "glina-desktop-first-use"
     static let tokenEnvironmentKey = "GLINA_DESKTOP_STADO_INTEGRATION_TOKEN"
 }
@@ -26,7 +26,7 @@ private enum GlinaJourney {
 /// The control plane can serve a newer journey than this build was written
 /// against. Accepting it silently would put a screen on the window whose final
 /// step Glina has no way to observe — the fact name is compiled into
-/// `observeSculptedAsset` — and first use would never finish. A mismatch is
+/// `observeImportedAsset` — and first use would never finish. A mismatch is
 /// refused here so the client falls back to the bundled definition, which this
 /// build does know how to complete.
 private struct GlinaJourneyTransport: JourneyTransport {
@@ -57,21 +57,17 @@ private struct GlinaJourneyTransport: JourneyTransport {
     }
 }
 
-/// Glina's first-run walkthrough: three screens ending in a real `.glb`.
+/// Glina's first-run walkthrough: three screens ending in a persisted import.
 ///
-/// The journey is not a tour of the sidebar. Its last screen is not dismissed
-/// by a button — it is finished by Glina reporting an asset it actually wrote,
-/// which is why `observeSculptedAsset` is the only path to `.completed` and why
-/// the overlay steps out of the way (`awaitingSculpt`) instead of closing when
-/// the operator says they are ready to sculpt. An operator who quits in that
-/// state is put back on the same screen next launch: progress persists on the
-/// screen they reached, not on the button they pressed.
+/// The final action only moves the overlay aside while the system file picker
+/// and Glina's own workspace import run. Completion is recorded only after the
+/// backend returns the accepted destination path.
 @MainActor
 final class GlinaOnboarding: ObservableObject {
     private enum State: Equatable {
         case loading
         case presenting
-        case awaitingSculpt
+        case awaitingImport
         case completed
     }
 
@@ -143,26 +139,21 @@ final class GlinaOnboarding: ObservableObject {
         }
     }
 
-    /// The operator said they are ready to sculpt, so the overlay gets out of
-    /// the way of the Sculpt screen without claiming first use is finished.
-    func prepareToSculpt() {
+    /// Let the system picker and backend import proceed without claiming
+    /// completion. A refusal can restore this screen with its exact reason.
+    func prepareToImport() {
         guard isFinalScreen else { return }
         errorMessage = nil
-        state = .awaitingSculpt
+        state = .awaitingImport
     }
 
-    /// First success, observed rather than asserted.
-    ///
-    /// `GlinaModel` has no opinion about onboarding; the window watches the
-    /// `.glb` path Glina reported for a finished sculpt and hands it here. The
-    /// path travels into the evidence revision so a second asset records a
-    /// second observation instead of colliding with the first.
-    func observeSculptedAsset(path: String) async {
-        guard let client, state == .awaitingSculpt || state == .presenting else { return }
+    /// First success is an accepted workspace destination, not a picker choice.
+    func observeImportedAsset(path: String) async {
+        guard let client, state == .awaitingImport || state == .presenting else { return }
         do {
             let completed = try await client.complete(
                 evidence: [GlinaJourney.firstSuccessFact: .boolean(true)],
-                evidenceRevision: "glb-asset-sculpted:\(path)"
+                evidenceRevision: "asset-imported:\(path)"
             )
             guard completed else { return }
             state = .completed
@@ -172,6 +163,12 @@ final class GlinaOnboarding: ObservableObject {
         } catch {
             return
         }
+    }
+
+    func importFailed(reason: String) {
+        guard state == .awaitingImport else { return }
+        errorMessage = reason
+        state = .presenting
     }
 
     func retry() async {
@@ -336,7 +333,7 @@ struct GlinaOnboardingOverlay: View {
     let isFinalScreen: Bool
     let stepNumber: Int?
     let advance: () -> Void
-    let startSculpting: () -> Void
+    let importAsset: () -> Void
     let retry: () -> Void
 
     var body: some View {
@@ -380,7 +377,7 @@ struct GlinaOnboardingOverlay: View {
                                 .buttonStyle(WisentPrimaryButtonStyle())
                                 .disabled(isWorking)
                         } else if isFinalScreen {
-                            Button("Go to Sculpt", action: startSculpting)
+                            Button("Import GLB…", action: importAsset)
                                 .buttonStyle(WisentPrimaryButtonStyle())
                                 .keyboardShortcut(.defaultAction)
                                 .disabled(isWorking)

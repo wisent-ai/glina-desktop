@@ -44,10 +44,18 @@ struct GlinaAssetsView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Spacer(minLength: 0)
+                    Button("Import GLB…") { chooseAssetForImport() }
+                        .disabled(model.isRunning)
                     Button("Choose Directory") { model.chooseAssetsDirectory() }
                     if model.assetsDirectory != nil {
                         Button("Refresh") { model.refreshAssets() }
                     }
+                }
+                if let imported = model.assetImport {
+                    Text(imported.path.map { "\(imported.status.capitalized): \($0)" }
+                        ?? "\(imported.status.capitalized): \(imported.reason ?? "No workspace state changed.")")
+                        .font(WisentTypeScale.caption())
+                        .foregroundStyle(imported.accepted ? WisentDesign.success : WisentDesign.danger)
                 }
             }
 
@@ -62,6 +70,18 @@ struct GlinaAssetsView: View {
                 )
             }
         }
+    }
+
+    private func chooseAssetForImport() {
+        guard !model.isRunning else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
+        panel.message = "Choose a GLB for Glina to validate and keep in its workspace."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task { await model.importAsset(from: url) }
     }
     private func presentPreview(urls: [URL], index: Int) {
         model.presentPreview(urls: urls, index: index)

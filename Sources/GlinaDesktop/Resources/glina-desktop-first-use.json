@@ -9,11 +9,11 @@
   },
   "entry_screen_id": "promise",
   "experiment_contract": null,
-  "first_success_fact": "glb_asset_sculpted",
+  "first_success_fact": "asset_imported",
   "journey_id": "first-use",
-  "journey_version": "2026-09-01.1",
+  "journey_version": "2026-09-05.1",
   "product_id": "glina-desktop",
-  "published_at": "2026-09-01T00:00:00Z",
+  "published_at": "2026-09-05T00:00:00Z",
   "schema_version": 1,
   "screens": [
     {
@@ -25,9 +25,9 @@
       "entry_conditions": null,
       "fallback_screen_id": null,
       "presentation": {
-        "body": "Glina sculpts a game asset from a text prompt, round by round through a live Blender session, and checks the result against the structural quality gate before you ever open it.",
+        "body": "Begin with a GLB you already own. Glina validates it through the same structural and optional Blender quality gate as generated work, then keeps an accepted copy in its local asset workspace.",
         "renderer": "promise",
-        "title": "Describe an asset, get a .glb"
+        "title": "Bring an existing asset into Glina"
       },
       "required": true,
       "screen_id": "promise",
@@ -50,9 +50,9 @@
       "entry_conditions": null,
       "fallback_screen_id": null,
       "presentation": {
-        "body": "Every screen shows the exact glina command it runs and prints that command's output and refusal word for word. Routing, Blender execution and the quality gate stay in the installed CLI, so this window never grows a second opinion about them.",
+        "body": "The window sends the selected path to Glina's loopback API. The installed product stages and validates the exact bytes before it writes workspace state, so a file-picker choice alone is never treated as success.",
         "renderer": "explanation",
-        "title": "This window runs Glina; Glina owns the pipeline"
+        "title": "Glina owns validation and persistence"
       },
       "required": true,
       "screen_id": "command_boundary",
@@ -68,11 +68,11 @@
     },
     {
       "actions": [
-        "sculpt_asset"
+        "import_asset"
       ],
       "body_key": "glina-desktop.onboarding.first_success.body",
       "completion_evidence": {
-        "fact": "glb_asset_sculpted",
+        "fact": "asset_imported",
         "kind": "fact",
         "operator": "eq",
         "value": true
@@ -80,9 +80,9 @@
       "entry_conditions": null,
       "fallback_screen_id": null,
       "presentation": {
-        "body": "Describe the asset on Sculpt and run it. First use finishes when Glina reports the .glb it wrote, which you can preview and reveal from the same screen.",
+        "body": "Choose an existing GLB. Imported or repeated content becomes the active asset for Verify and the animation tools; a malformed asset or a name collision leaves existing work untouched.",
         "renderer": "first_success",
-        "title": "Sculpt your first asset"
+        "title": "Import the asset you want to continue"
       },
       "required": true,
       "screen_id": "first_success",
@@ -91,5 +91,5 @@
       "transitions": []
     }
   ],
-  "source_revision": "glina-desktop-first-use-2026-09-01"
+  "source_revision": "glina-desktop-first-use-2026-09-05.1"
 }
