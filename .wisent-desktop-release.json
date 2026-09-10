@@ -4,7 +4,7 @@
   "product": "Glina",
   "bundle_id": "ai.wisent.glina.desktop",
   "bundle_path": ".build/Glina.app",
-  "build_command": "GLINA_INSTALL_AFTER_BUILD=no ./Scripts/build-app.sh",
+  "build_command": "GLINA_INSTALL_AFTER_BUILD=no ./release/bundle/build-app.sh",
   "archive_name": "Glina-{version}.zip",
   "feed_url": "https://github.com/wisent-ai/glina-desktop/releases/latest/download/appcast.xml",
   "minimum_system_version": "14.0"

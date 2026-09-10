@@ -42,7 +42,7 @@ npm install -g @wisent-ai/glina
 Then build and install the app:
 
 ```sh
-./Scripts/build-app.sh
+./release/bundle/build-app.sh
 ```
 
 The application bundle is installed to `~/Applications/Glina.app` and must be
