@@ -307,6 +307,10 @@ final class FrameDrivenGIFView: NSImageView {
     private(set) var loadedURL: URL?
     private var loadedModificationDate: Date?
     private var nextReloadCheck = Date.distantPast
+    /// A frame without a delay shows for a tenth of a second; browsers clamp anything shorter than 20 ms.
+    private static let defaultFrameDelay: TimeInterval = 0.1
+    private static let minimumFrameDelay: TimeInterval = 0.02
+    private static let nanosecondsPerSecond: Double = 1_000_000_000
 
     func needsReload(for url: URL) -> Bool {
         loadedURL != url || modificationDate(for: url) != loadedModificationDate
@@ -333,8 +337,8 @@ final class FrameDrivenGIFView: NSImageView {
             let rawDelay =
                 (gif?[kCGImagePropertyGIFUnclampedDelayTime] as? Double)
                 ?? (gif?[kCGImagePropertyGIFDelayTime] as? Double)
-                ?? 0.1
-            delays.append(max(rawDelay, 0.02))
+                ?? Self.defaultFrameDelay
+            delays.append(max(rawDelay, Self.minimumFrameDelay))
         }
         guard !frames.isEmpty else {
             image = nil
@@ -354,8 +358,8 @@ final class FrameDrivenGIFView: NSImageView {
         animationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             while !Task.isCancelled, self.frames.count > 1 {
-                let delay = self.delays.indices.contains(self.frameIndex) ? self.delays[self.frameIndex] : 0.1
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                let delay = self.delays.indices.contains(self.frameIndex) ? self.delays[self.frameIndex] : Self.defaultFrameDelay
+                try? await Task.sleep(nanoseconds: UInt64(delay * Self.nanosecondsPerSecond))
                 guard !Task.isCancelled else { return }
                 if Date() >= self.nextReloadCheck {
                     self.nextReloadCheck = Date().addingTimeInterval(1)

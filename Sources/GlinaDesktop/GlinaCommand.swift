@@ -32,10 +32,13 @@ enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
 }
 
 struct GlinaCommandDraft: Equatable, Sendable {
+    /// Rounds a sculpt may take before Glina stops refining, unless the operator sets another cap.
+    static let defaultRounds = 12
+
     var action: GlinaAction = .sculpt
     var prompt = ""
     /// Round cap sent with the sculpt request.
-    var rounds = 12
+    var rounds = Self.defaultRounds
     var assetPath = ""
 
     var validationProblem: String? {
