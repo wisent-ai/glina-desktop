@@ -76,8 +76,6 @@ final class GlinaModel: ObservableObject {
         assetRefreshTask?.cancel()
     }
 
-    let backend = GlinaBackendProcess()
-
     /// Launch flags: `--assets-dir PATH` selects the output directory,
     /// `--play PATH` opens the window already on that element.
     func applyLaunchOptions() {

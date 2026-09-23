@@ -1,8 +1,8 @@
 # Glina Desktop
 
 **Your AI sculpts your game assets.** Native macOS workspace for Glina
-text-to-GLB sculpting. It starts the installed `glina serve` loopback backend
-and calls product-owned API operations rather than reimplementing Brama routing,
+text-to-GLB sculpting. It runs the installed `glina` CLI once per operation and
+keeps no Glina process between them, rather than reimplementing Brama routing,
 Blender MCP execution, GLB verification, or workspace persistence.
 
 ## Workflows
@@ -24,9 +24,13 @@ Blender MCP execution, GLB verification, or workspace persistence.
 - Browse an output directory for produced `.glb` and `.png` artifacts with
   Quick Look preview and Reveal in Finder.
 
-The app shows backend output and refusals rather than paraphrasing the quality
-gate. Long operations stream through `glina serve`; import uses the same
-`pipeline/workspace.js` operation as the CLI.
+The app shows the CLI's own output and refusals rather than paraphrasing the
+quality gate. Each operation is one finite `glina` command (`check-config`,
+`weles-tools`, `blender-health`, `sculpt`, `verify`, `preview-anim`, `import`):
+its output streams into the live log as it is written, its exit status and the
+JSON document it prints last are the result, and a failure shows the last line
+it wrote to stderr. Import uses the same `pipeline/workspace.js` operation as
+the CLI because it is the CLI.
 
 ## Requirements
 

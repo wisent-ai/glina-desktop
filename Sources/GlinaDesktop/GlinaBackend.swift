@@ -1,132 +1,23 @@
-import AppKit
 import Foundation
 
-/// The one Glina backend process for the app's lifetime. Spawned lazily on
-/// first use as `glina serve --port 0`, which binds 127.0.0.1 on an ephemeral
-/// port and prints a single ready line naming that port; the process then
-/// serves HTTP until the app kills it on quit.
-actor GlinaBackendProcess {
-    private var process: Process?
-    private var baseURL: URL?
-    private var resolvedExecutable: URL?
-    private var terminationObserver: NSObjectProtocol?
-
-    /// The loopback base URL of the running backend, spawning it on first
-    /// use or after a death.
-    func endpoint() async throws -> URL {
-        if let process, process.isRunning, let baseURL { return baseURL }
-        stop()
-
-        let executable = try executableURL()
-        let process = Process()
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.executableURL = executable
-        process.arguments = ["serve", "--port", "0"]
-        process.standardOutput = stdout
-        process.standardError = stderr
-        do {
-            try process.run()
-        } catch {
-            throw GlinaBackendError.failedToStart(error.localizedDescription)
-        }
-        self.process = process
-        terminationObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.willTerminateNotification,
-            object: nil,
-            queue: nil
-        ) { _ in
-            process.terminate()
-        }
-
-        do {
-            let port = try await Self.awaitReady(
-                process: process,
-                stdout: stdout.fileHandleForReading,
-                stderr: stderr.fileHandleForReading
-            )
-            let base = URL(string: "http://127.0.0.1:\(port)")!
-            baseURL = base
-            return base
-        } catch {
-            process.terminate()
-            self.process = nil
-            if let terminationObserver {
-                NotificationCenter.default.removeObserver(terminationObserver)
-            }
-            terminationObserver = nil
-            throw error
-        }
+/// One Glina CLI run per operation.
+///
+/// The app used to start `glina serve --port 0` on first use and keep it for
+/// as long as it ran: a second resident Glina process with its own loopback
+/// port. Every operation is now one finite `glina` command. Its output is
+/// forwarded as it arrives, and the run ends with the command's exit status
+/// and everything it printed, so the window shows the same document and the
+/// same refusal an operator sees in a terminal.
+enum GlinaCommand {
+    struct Outcome: Sendable {
+        let status: Int32
+        let stdout: String
+        let stderr: String
     }
 
-    /// Kills the backend, if one is running.
-    func stop() {
-        if let terminationObserver {
-            NotificationCenter.default.removeObserver(terminationObserver)
-        }
-        terminationObserver = nil
-        process?.terminate()
-        process = nil
-        baseURL = nil
-    }
-
-    /// Waits for the single ready line the backend prints once it has bound
-    /// its port. Any other outcome — exit, timeout, unreadable line — is a
-    /// start failure reported with the backend's own stderr tail.
-    private static func awaitReady(
-        process: Process,
-        stdout: FileHandle,
-        stderr: FileHandle
-    ) async throws -> Int {
-        try await withCheckedThrowingContinuation { continuation in
-            let state = ReadyHandshake()
-            state.attach(stdout: stdout, stderr: stderr)
-            let finish: @Sendable (Result<Int, Error>) -> Void = { result in
-                state.finish {
-                    continuation.resume(with: result)
-                }
-            }
-            stderr.readabilityHandler = { handle in
-                let data = handle.availableData
-                guard !data.isEmpty else {
-                    handle.readabilityHandler = nil
-                    return
-                }
-                state.appendError(String(decoding: data, as: UTF8.self))
-            }
-            stdout.readabilityHandler = { handle in
-                let data = handle.availableData
-                guard !data.isEmpty else {
-                    handle.readabilityHandler = nil
-                    finish(.failure(GlinaBackendError.failedToStart(
-                        "It stopped unexpectedly." + state.stderrSuffix()
-                    )))
-                    return
-                }
-                guard let line = state.appendOutput(data) else { return }
-                if let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
-                   (object["ready"] as? Bool) == true,
-                   let port = object["port"] as? Int {
-                    finish(.success(port))
-                } else {
-                    finish(.failure(GlinaBackendError.failedToStart(
-                        "It returned an unreadable response." + state.stderrSuffix()
-                    )))
-                }
-            }
-            state.scheduleTimeout {
-                process.terminate()
-                finish(.failure(GlinaBackendError.failedToStart(
-                    "It did not start within twenty seconds." + state.stderrSuffix()
-                )))
-            }
-        }
-    }
-
-    /// Locates the installed `glina` executable: the PATH entries first, then
-    /// the well-known install locations.
-    private func executableURL() throws -> URL {
-        if let resolvedExecutable { return resolvedExecutable }
+    /// The installed `glina` executable: the PATH entries first, then the
+    /// well-known install locations.
+    static func executable() throws -> URL {
         let manager = FileManager.default
         let home = manager.homeDirectoryForCurrentUser
         let candidates = (ProcessInfo.processInfo.environment["PATH"] ?? "")
@@ -141,82 +32,107 @@ actor GlinaBackendProcess {
         guard let found = candidates.first(where: { manager.isExecutableFile(atPath: $0.path) }) else {
             throw GlinaBackendError.executableMissing
         }
-        resolvedExecutable = found
         return found
+    }
+
+    /// Run `glina arguments` to completion, handing each chunk it writes to
+    /// `onLog` in arrival order.
+    static func run(
+        _ arguments: [String],
+        onLog: @escaping @MainActor (String) -> Void
+    ) async throws -> Outcome {
+        let executable = try executable()
+        let process = Process()
+        let stdout = Pipe()
+        let stderr = Pipe()
+        process.executableURL = executable
+        process.arguments = arguments
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = stdout
+        process.standardError = stderr
+        let run = RunState()
+        return try await withCheckedThrowingContinuation { continuation in
+            run.attach(continuation)
+            for (pipe, stream) in [(stdout, RunState.Stream.stdout), (stderr, .stderr)] {
+                pipe.fileHandleForReading.readabilityHandler = { handle in
+                    let data = handle.availableData
+                    guard !data.isEmpty else {
+                        handle.readabilityHandler = nil
+                        run.closed(stream)
+                        return
+                    }
+                    let text = String(decoding: data, as: UTF8.self)
+                    run.append(text, to: stream)
+                    Task { @MainActor in onLog(text) }
+                }
+            }
+            process.terminationHandler = { finished in
+                run.exited(finished.terminationStatus)
+            }
+            do {
+                try process.run()
+            } catch {
+                stdout.fileHandleForReading.readabilityHandler = nil
+                stderr.fileHandleForReading.readabilityHandler = nil
+                run.fail(GlinaBackendError.failedToStart(error.localizedDescription))
+            }
+        }
     }
 }
 
-/// Lock-guarded state for the ready handshake: stdout buffer, stderr tail,
-/// the timeout, and the once-only resume of the awaiting continuation.
-private final class ReadyHandshake: @unchecked Sendable {
+/// Lock-guarded state of one run: the output of both streams, which of them
+/// has closed, the exit status, and the once-only resume of the caller.
+private final class RunState: @unchecked Sendable {
+    enum Stream { case stdout, stderr }
+
     private let lock = NSLock()
-    private var stdoutBuffer = Data()
-    private var stderrTail = ""
-    private var resumed = false
-    private var timeoutItem: DispatchWorkItem?
-    private var stdoutHandle: FileHandle?
-    private var stderrHandle: FileHandle?
+    private var continuation: CheckedContinuation<GlinaCommand.Outcome, Error>?
+    private var stdout = ""
+    private var stderr = ""
+    private var open: Set<Stream> = [.stdout, .stderr]
+    private var status: Int32?
 
-    func attach(stdout: FileHandle, stderr: FileHandle) {
-        lock.lock()
-        stdoutHandle = stdout
-        stderrHandle = stderr
-        lock.unlock()
+    func attach(_ continuation: CheckedContinuation<GlinaCommand.Outcome, Error>) {
+        lock.withLock { self.continuation = continuation }
     }
 
-    /// Buffers stdout; returns the first complete line once it arrives.
-    func appendOutput(_ data: Data) -> Data? {
-        lock.lock()
-        defer { lock.unlock() }
-        stdoutBuffer.append(data)
-        guard let newline = stdoutBuffer.firstIndex(of: UInt8(ascii: "\n")) else { return nil }
-        var line = Data(stdoutBuffer[..<newline])
-        if line.last == UInt8(ascii: "\r") { line.removeLast() }
-        return line
-    }
-
-    /// The backend's stderr is kept only as a tail this long, enough for one error with context.
-    private static let stderrTailLimit = 2_000
-
-    func appendError(_ text: String) {
-        lock.lock()
-        stderrTail += text
-        if stderrTail.count > Self.stderrTailLimit { stderrTail = String(stderrTail.suffix(Self.stderrTailLimit)) }
-        lock.unlock()
-    }
-
-    /// The captured stderr, formatted as a trailing sentence fragment.
-    func stderrSuffix() -> String {
-        lock.lock()
-        defer { lock.unlock() }
-        let trimmed = stderrTail.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "" : " " + trimmed
-    }
-
-    func scheduleTimeout(_ action: @escaping () -> Void) {
-        let item = DispatchWorkItem(block: action)
-        lock.lock()
-        timeoutItem = item
-        lock.unlock()
-        DispatchQueue.global().asyncAfter(deadline: .now() + 20, execute: item)
-    }
-
-    /// Runs `body` exactly once, cancelling the pending timeout and
-    /// detaching both read handlers.
-    func finish(_ body: () -> Void) {
-        lock.lock()
-        guard !resumed else {
-            lock.unlock()
-            return
+    func append(_ text: String, to stream: Stream) {
+        lock.withLock {
+            switch stream {
+            case .stdout: stdout += text
+            case .stderr: stderr += text
+            }
         }
-        resumed = true
-        timeoutItem?.cancel()
-        let stdout = stdoutHandle
-        let stderr = stderrHandle
-        lock.unlock()
-        stdout?.readabilityHandler = nil
-        stderr?.readabilityHandler = nil
-        body()
+    }
+
+    func closed(_ stream: Stream) {
+        finishIfDone { open.remove(stream) }
+    }
+
+    func exited(_ code: Int32) {
+        finishIfDone { status = code }
+    }
+
+    func fail(_ error: Error) {
+        let waiting = lock.withLock { () -> CheckedContinuation<GlinaCommand.Outcome, Error>? in
+            defer { continuation = nil }
+            return continuation
+        }
+        waiting?.resume(throwing: error)
+    }
+
+    /// The run is over once the process exited and both pipes reached end of
+    /// file, so no output written just before exit is lost.
+    private func finishIfDone(_ change: () -> Void) {
+        let ready = lock.withLock { () -> (CheckedContinuation<GlinaCommand.Outcome, Error>, GlinaCommand.Outcome)? in
+            change()
+            guard open.isEmpty, let status, let waiting = continuation else { return nil }
+            continuation = nil
+            return (waiting, GlinaCommand.Outcome(status: status, stdout: stdout, stderr: stderr))
+        }
+        if let ready {
+            ready.0.resume(returning: ready.1)
+        }
     }
 }
 

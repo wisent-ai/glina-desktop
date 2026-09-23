@@ -27,53 +27,33 @@ struct GlinaAssetImport: Decodable, Equatable {
     }
 }
 
-enum GlinaClientError: LocalizedError {
-    case notHTTP
-    case streamClosedEarly
-
-    var errorDescription: String? {
-        switch self {
-        case .notHTTP:
-            return "Glina returned an unreadable response."
-        case .streamClosedEarly:
-            return "The run ended before a result was available."
-        }
-    }
-}
-
-/// HTTP/JSON client for the local Glina backend. Reads are plain GETs;
-/// long-running workflows POST and stream NDJSON — each log event feeds the
-/// live log in the backend's own order, and the single result event carries
-/// the status and the result document.
+/// Glina operations, each one finite `glina` command. A command's output
+/// feeds the live log in its own order; its exit status and the JSON document
+/// it printed last are the result.
 struct GlinaClient: Sendable {
-    let baseURL: URL
 
     private static let pathKeys = ["outPath", "file", "path"]
 
     // MARK: - Reads
 
     func config() async throws -> GlinaOutcome {
-        try await get("config")
+        try await run(["check-config"]) { _ in }
     }
 
     func welesTools() async throws -> GlinaOutcome {
-        try await get("weles-tools")
+        try await run(["weles-tools"]) { _ in }
     }
 
-    /// A failed probe is still a 200, with {"ok":false,"error":...}; surface
-    /// that sentence as the refusal instead of reporting success.
+    /// An unhealthy session exits 1 and says so on stdout alone; surface the
+    /// probe's own sentence as the refusal instead of an empty one.
     func blenderHealth() async throws -> GlinaOutcome {
-        let outcome = try await get("blender-health")
-        guard outcome.status == 0,
-              let data = outcome.document.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              (object["ok"] as? Bool) == false
-        else { return outcome }
+        let outcome = try await run(["blender-health"]) { _ in }
+        guard outcome.status != 0, outcome.stderrText.isEmpty else { return outcome }
         return GlinaOutcome(
-            status: 1,
+            status: outcome.status,
             document: outcome.document,
-            stderrText: "",
-            refusal: (object["error"] as? String) ?? "The Blender session did not answer.",
+            stderrText: outcome.stderrText,
+            refusal: "Blender MCP server answered but the execute_blender_code probe failed",
             paths: []
         )
     }
@@ -81,16 +61,15 @@ struct GlinaClient: Sendable {
     // MARK: - Workflows
 
     func sculpt(prompt: String, rounds: Int, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
-        let body: [String: Any] = ["prompt": prompt, "rounds": rounds, "outDir": NSNull()]
-        return try await postStreaming("sculpt", body: body, onLog: onLog)
+        try await run(["sculpt", prompt, "--rounds", String(rounds)], onLog: onLog)
     }
 
     func verify(path: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
-        try await postStreaming("verify", body: ["path": path], onLog: onLog)
+        try await run(["verify", path], onLog: onLog)
     }
 
     func previewAnim(path: String, clip: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
-        try await postStreaming("preview-anim", body: ["path": path, "clip": clip], onLog: onLog)
+        try await run(clip.isEmpty ? ["preview-anim", path] : ["preview-anim", path, "--clip", clip], onLog: onLog)
     }
 
     func importAsset(
@@ -98,124 +77,62 @@ struct GlinaClient: Sendable {
         name: String? = nil,
         onLog: @escaping @MainActor (String) -> Void
     ) async throws -> GlinaOutcome {
-        var body: [String: Any] = ["source": source]
+        var arguments = ["import", source]
         if let name, !name.isEmpty {
-            body["name"] = name
+            arguments += ["--name", name]
         }
-        return try await postStreaming("workspace/import", body: body, onLog: onLog)
+        return try await run(arguments, onLog: onLog)
     }
 
     // MARK: - Transport
 
-    private func get(_ endpoint: String) async throws -> GlinaOutcome {
-        let url = baseURL.appendingPathComponent("v1").appendingPathComponent(endpoint)
-        let (data, response) = try await URLSession.shared.data(from: url)
-        guard let http = response as? HTTPURLResponse else { throw GlinaClientError.notHTTP }
-        let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        let document = Self.pretty(object, fallback: data)
-        guard (200...299).contains(http.statusCode) else {
-            return GlinaOutcome(
-                status: 1,
-                document: document,
-                stderrText: "",
-                refusal: (object?["error"] as? String)
-                    ?? "Glina returned an error.",
-                paths: []
-            )
-        }
-        return GlinaOutcome(
-            status: 0,
-            document: document,
-            stderrText: "",
-            refusal: nil,
-            paths: object.map(Self.extractPaths) ?? []
-        )
-    }
-
-    private func postStreaming(
-        _ endpoint: String,
-        body: [String: Any],
+    private func run(
+        _ arguments: [String],
         onLog: @escaping @MainActor (String) -> Void
     ) async throws -> GlinaOutcome {
-        var request = URLRequest(url: baseURL.appendingPathComponent("v1").appendingPathComponent(endpoint))
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (bytes, response) = try await URLSession.shared.bytes(for: request)
-        guard let http = response as? HTTPURLResponse else { throw GlinaClientError.notHTTP }
-
-        // A non-2xx before the stream starts is the error envelope.
-        guard (200...299).contains(http.statusCode) else {
-            var data = Data()
-            for try await line in bytes.lines {
-                data.append(contentsOf: line.utf8)
-                data.append(UInt8(ascii: "\n"))
-            }
-            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            return GlinaOutcome(
-                status: 1,
-                document: Self.pretty(object, fallback: data),
-                stderrText: "",
-                refusal: (object?["error"] as? String)
-                    ?? "Glina returned an error.",
-                paths: []
-            )
-        }
-
-        var stderrText = ""
-        var resultStatus: Int?
-        var resultObject: [String: Any]?
-        for try await line in bytes.lines {
-            guard !line.isEmpty,
-                  let lineData = line.data(using: .utf8),
-                  let event = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
-                  let type = event["type"] as? String
-            else { continue }
-            switch type {
-            case "log":
-                let chunk = event["chunk"] as? String ?? ""
-                if event["stream"] as? String == "stderr" { stderrText += chunk }
-                await onLog(chunk)
-            case "result":
-                resultStatus = event["status"] as? Int
-                resultObject = event["json"] as? [String: Any]
-            default:
-                continue
-            }
-        }
-        guard let status = resultStatus else { throw GlinaClientError.streamClosedEarly }
-
+        let result = try await GlinaCommand.run(arguments, onLog: onLog)
+        let object = Self.lastDocument(in: result.stdout)
         let refusal: String?
-        if status == 0 {
+        if result.status == 0 {
             refusal = nil
         } else {
-            let trimmed = stderrText.trimmingCharacters(in: .whitespacesAndNewlines)
-            refusal = trimmed.isEmpty
-                ? "The run failed."
-                : trimmed
+            let lastLine = result.stderr
+                .split(separator: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .last { !$0.isEmpty }
+            refusal = lastLine ?? "The run failed."
         }
         return GlinaOutcome(
-            status: status,
-            document: resultObject.map { Self.pretty($0, fallback: nil) } ?? "",
-            stderrText: stderrText,
+            status: Int(result.status),
+            document: object.map { Self.pretty($0) }
+                ?? result.stdout.trimmingCharacters(in: .whitespacesAndNewlines),
+            stderrText: result.stderr,
             refusal: refusal,
-            paths: resultObject.map(Self.extractPaths) ?? []
+            paths: object.map(Self.extractPaths) ?? []
         )
     }
 
     // MARK: - JSON helpers
 
-    private static func pretty(_ object: [String: Any]?, fallback: Data?) -> String {
-        if let object,
-           let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
-           let text = String(data: data, encoding: .utf8) {
-            return text
+    /// The JSON document a command printed last: the CLI pretty-prints its
+    /// result, so it starts at the last line that opens an object.
+    private static func lastDocument(in stdout: String) -> [String: Any]? {
+        let lines = stdout.components(separatedBy: "\n")
+        for start in lines.indices.reversed() where lines[start].hasPrefix("{") {
+            let candidate = lines[start...].joined(separator: "\n")
+            if let data = candidate.data(using: .utf8),
+               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                return object
+            }
         }
-        if let fallback, let text = String(data: fallback, encoding: .utf8) {
-            return text.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        return ""
+        return nil
+    }
+
+    private static func pretty(_ object: [String: Any]) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
+              let text = String(data: data, encoding: .utf8)
+        else { return "" }
+        return text
     }
 
     private static func extractPaths(from object: [String: Any]) -> [String] {

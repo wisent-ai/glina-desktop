@@ -1,5 +1,5 @@
 // What a run does: the workflow the draft names, and importing an asset the
-// operator chose, both through the same backend the window already started.
+// operator chose, each as one finite `glina` command.
 
 import Foundation
 import SwiftUI
@@ -121,11 +121,12 @@ extension GlinaModel {
     }
 
     func makeClient() async throws -> GlinaClient {
-        GlinaClient(baseURL: try await backend.endpoint())
+        _ = try GlinaCommand.executable()
+        return GlinaClient()
     }
 
-    /// Appends one streamed log event; NDJSON already arrives in the
-    /// backend's own order, so no resequencing is needed.
+    /// Appends one chunk of a command's output, in the order the command
+    /// wrote it.
     func appendLog(_ chunk: String) {
         liveLog += chunk
     }
