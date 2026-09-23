@@ -5,7 +5,6 @@
   "manifest": ".wisent-desktop-release.json",
   "publisher": [
     "sparkle",
-    "stado-release-channel",
     "github-releases"
   ]
 }
