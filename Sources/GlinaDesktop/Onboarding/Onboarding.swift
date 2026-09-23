@@ -10,8 +10,11 @@ import WisentOnboarding
 enum GlinaJourney {
     static let productID = "glina-desktop"
     static let journeyID = "first-use"
-    static let journeyVersion = "2026-09-05.1"
+    static let journeyVersion = "2026-09-23.1"
     static let firstSuccessFact = "asset_imported"
+    /// The evidence revision and the storage namespace keep the first
+    /// version's names: a revision that only corrects copy must not restart an
+    /// installation's walkthrough.
     static let evidenceRevision = "glina-desktop-first-use-2026-09-05"
     static let storageNamespace = "ai.wisent.glina.onboarding.2026-09-05.1"
     static let installationIDKey = "ai.wisent.glina.onboarding.installation-id"

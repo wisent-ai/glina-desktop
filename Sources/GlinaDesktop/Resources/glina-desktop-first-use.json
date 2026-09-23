@@ -11,9 +11,9 @@
   "experiment_contract": null,
   "first_success_fact": "asset_imported",
   "journey_id": "first-use",
-  "journey_version": "2026-09-05.1",
+  "journey_version": "2026-09-23.1",
   "product_id": "glina-desktop",
-  "published_at": "2026-09-05T00:00:00Z",
+  "published_at": "2026-09-23T00:00:00Z",
   "schema_version": 1,
   "screens": [
     {
@@ -50,7 +50,7 @@
       "entry_conditions": null,
       "fallback_screen_id": null,
       "presentation": {
-        "body": "The window sends the selected path to Glina's loopback API. The installed product stages and validates the exact bytes before it writes workspace state, so a file-picker choice alone is never treated as success.",
+        "body": "The window hands the selected path to the installed glina command, one process that exits once it has answered. The product stages and validates the exact bytes before it writes workspace state, so a file-picker choice alone is never treated as success.",
         "renderer": "explanation",
         "title": "Glina owns validation and persistence"
       },
@@ -91,5 +91,5 @@
       "transitions": []
     }
   ],
-  "source_revision": "glina-desktop-first-use-2026-09-05.1"
+  "source_revision": "glina-desktop-first-use-2026-09-23.1"
 }
