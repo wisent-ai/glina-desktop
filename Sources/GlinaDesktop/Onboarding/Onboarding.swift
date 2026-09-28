@@ -112,16 +112,21 @@ final class GlinaOnboarding: ObservableObject {
             if progress.status == .completed {
                 state = .completed
                 screen = nil
-                try? await client.flush()
             } else {
                 state = .presenting
                 try await expose(using: client)
-                try? await client.flush()
             }
         } catch {
             screen = nil
             errorMessage = "Glina couldn’t load its first-run walkthrough. Try again to continue."
             state = .presenting
+            return
+        }
+        guard let client else { return }
+        do {
+            try await client.flush()
+        } catch {
+            errorMessage = "Glina couldn’t send its first-use events: \(error.localizedDescription)"
         }
     }
 
