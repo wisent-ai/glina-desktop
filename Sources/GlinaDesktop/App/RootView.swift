@@ -53,6 +53,18 @@ struct GlinaRootView: View {
                 )
             }
         }
+        // A failure after the walkthrough has closed (events that could not be
+        // sent once first use is complete) is shown over the working window.
+        .overlay(alignment: .bottom) {
+            if !onboarding.isPresented, let failure = onboarding.errorMessage {
+                WisentErrorBanner(
+                    title: "Glina first use",
+                    detail: failure,
+                    action: WisentAction("Dismiss", kind: .secondary) { onboarding.errorMessage = nil }
+                )
+                .padding(WisentDesign.Space.x4)
+            }
+        }
     }
 
     private var screenActions: [WisentAction] {
