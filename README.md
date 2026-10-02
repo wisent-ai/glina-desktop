@@ -26,7 +26,8 @@ Blender MCP execution, GLB verification, or workspace persistence.
 
 The app shows the CLI's own output and refusals rather than paraphrasing the
 quality gate. Each operation is one finite `glina` command (`check-config`,
-`doctor`, `sculpt`, `verify`, `preview-anim`, `import`):
+`doctor`, `setup`, `export-config`, `sculpt`, `create`, `verify`, `animate`,
+`showcase`, `showcases`/`presets`, `preview-anim`, `import`):
 its output streams into the live log as it is written, its exit status and the
 JSON document it prints last are the result, and a failure shows the last line
 it wrote to stderr. Import uses the same `pipeline/workspace.js` operation as

@@ -40,6 +40,23 @@ extension GlinaModel {
                 outcome = try await client.config()
             case .doctor:
                 outcome = try await client.doctor()
+            case .create:
+                outcome = try await client.create(prompt: draft.prompt, race: draft.race, onLog: appendLog)
+            case .animate:
+                outcome = try await client.animate(path: draft.assetPath, preset: draft.preset, onLog: appendLog)
+            case .showcase:
+                outcome = try await client.showcase(asset: draft.showcaseAsset, onLog: appendLog)
+            case .declarations:
+                outcome = try await client.declarations(
+                    kind: draft.declarationKind,
+                    verb: draft.declarationVerb,
+                    name: draft.declarationName,
+                    file: draft.declarationFile
+                )
+            case .exportConfig:
+                outcome = try await client.exportConfig(out: draft.exportPath)
+            case .setup:
+                outcome = try await client.setup(checkOnly: draft.setupCheckOnly, dryRun: draft.setupDryRun, onLog: appendLog)
             case .assets:
                 return
             }

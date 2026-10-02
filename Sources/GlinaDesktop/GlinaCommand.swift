@@ -4,16 +4,22 @@ import Foundation
 /// title and a symbol, and the model maps the selection to a backend
 /// endpoint. No executable invocation is built from this state.
 enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
-    case sculpt, verify, config, doctor, assets
+    case sculpt, create, verify, animate, showcase, declarations, config, exportConfig, doctor, setup, assets
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .sculpt: return "Sculpt"
+        case .create: return "Create"
         case .verify: return "Verify"
+        case .animate: return "Animate"
+        case .showcase: return "Showcase"
+        case .declarations: return "Declarations"
         case .config: return "Check Config"
+        case .exportConfig: return "Export Config"
         case .doctor: return "Doctor"
+        case .setup: return "Setup"
         case .assets: return "Assets"
         }
     }
@@ -21,9 +27,15 @@ enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
     var symbol: String {
         switch self {
         case .sculpt: return "hammer"
+        case .create: return "wand.and.stars"
         case .verify: return "checkmark.seal"
+        case .animate: return "figure.walk.motion"
+        case .showcase: return "sparkles.tv"
+        case .declarations: return "list.bullet.clipboard"
         case .config: return "list.bullet.rectangle"
+        case .exportConfig: return "square.and.arrow.up"
         case .doctor: return "waveform.path.ecg"
+        case .setup: return "shippingbox"
         case .assets: return "cube.transparent"
         }
     }
@@ -38,16 +50,63 @@ struct GlinaCommandDraft: Equatable, Sendable {
     /// Round cap sent with the sculpt request.
     var rounds = Self.defaultRounds
     var assetPath = ""
+    /// `create`: the race the studio flow draws the asset for; empty sends none.
+    var race = ""
+    /// `animate`: the declared preset to apply.
+    var preset = ""
+    /// `showcase`: the declared showcase asset to build.
+    var showcaseAsset = ""
+    /// `declarations`: which kind, which verb, and the name and file a verb takes.
+    var declarationKind: GlinaDeclarationKind = .presets
+    var declarationVerb: GlinaDeclarationVerb = .list
+    var declarationName = ""
+    var declarationFile = ""
+    /// `export-config`: where the resolved, owner-only config is written.
+    var exportPath = ""
+    /// `setup`: only locate the tooling, or only say what provisioning would do.
+    var setupCheckOnly = true
+    var setupDryRun = false
 
     var validationProblem: String? {
         switch action {
-        case .sculpt:
+        case .sculpt, .create:
             return prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? "Describe the asset to sculpt." : nil
+                ? "Describe the asset to make." : nil
         case .verify:
             return assetPath.isEmpty ? "Choose a .glb file." : nil
-        case .config, .doctor, .assets:
+        case .animate:
+            return preset.trimmingCharacters(in: .whitespaces).isEmpty ? "Name the declared preset to apply." : nil
+        case .showcase:
+            return showcaseAsset.trimmingCharacters(in: .whitespaces).isEmpty ? "Name the declared showcase asset." : nil
+        case .declarations:
+            switch declarationVerb {
+            case .list: return nil
+            case .add:
+                if declarationName.trimmingCharacters(in: .whitespaces).isEmpty { return "Name the declaration." }
+                return declarationFile.isEmpty ? "Choose the JSON file that declares it." : nil
+            case .remove:
+                return declarationName.trimmingCharacters(in: .whitespaces).isEmpty ? "Name the declaration to remove." : nil
+            }
+        case .exportConfig:
+            return exportPath.trimmingCharacters(in: .whitespaces).isEmpty ? "Say where the resolved config should be written." : nil
+        case .config, .doctor, .setup, .assets:
             return nil
         }
+    }
+}
+
+/// The two declaration kinds `glina showcases` and `glina presets` manage.
+enum GlinaDeclarationKind: String, CaseIterable, Identifiable, Sendable {
+    case showcases, presets
+
+    var id: String { rawValue }
+}
+
+/// What a declaration run does: the verbs the CLI takes after the kind.
+enum GlinaDeclarationVerb: String, CaseIterable, Identifiable, Sendable {
+    case list, add, remove
+
+    var id: String { rawValue }
+}
     }
 }

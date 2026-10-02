@@ -82,6 +82,50 @@ struct GlinaClient: Sendable {
         return try await run(arguments, onLog: onLog)
     }
 
+    /// `glina create`: the studio flow through the Weles browser layer.
+    func create(prompt: String, race: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+        var arguments = ["create", prompt]
+        if !race.isEmpty { arguments += ["--race", race] }
+        return try await run(arguments, onLog: onLog)
+    }
+
+    /// `glina animate`: the declared preset over the chosen asset, or the active one when the path is empty.
+    func animate(path: String, preset: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+        var arguments = ["animate"]
+        if !path.isEmpty { arguments.append(path) }
+        arguments += ["--preset", preset]
+        return try await run(arguments, onLog: onLog)
+    }
+
+    /// `glina showcase`: build the declared animated reference asset.
+    func showcase(asset: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+        try await run(["showcase", asset], onLog: onLog)
+    }
+
+    /// `glina showcases|presets list|add|remove`: the declarations the two workflows read.
+    func declarations(kind: GlinaDeclarationKind, verb: GlinaDeclarationVerb, name: String, file: String) async throws -> GlinaOutcome {
+        var arguments = [kind.rawValue, verb.rawValue]
+        switch verb {
+        case .list: break
+        case .add: arguments += [name, file]
+        case .remove: arguments.append(name)
+        }
+        return try await run(arguments) { _ in }
+    }
+
+    /// `glina export-config --out`: the resolved, owner-only config for a remote run.
+    func exportConfig(out: String) async throws -> GlinaOutcome {
+        try await run(["export-config", "--out", out]) { _ in }
+    }
+
+    /// `glina setup`: provision the Blender tooling, or only check or describe it.
+    func setup(checkOnly: Bool, dryRun: Bool, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+        var arguments = ["setup"]
+        if checkOnly { arguments.append("--check") }
+        if dryRun { arguments.append("--dry-run") }
+        return try await run(arguments, onLog: onLog)
+    }
+
     // MARK: - Transport
 
     private func run(

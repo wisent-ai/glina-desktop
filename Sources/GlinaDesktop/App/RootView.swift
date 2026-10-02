@@ -135,6 +135,28 @@ struct GlinaRootView: View {
             workspaceAndFirstRun
         case .doctor:
             resultPanel(live: false)
+        case .create:
+            createForm
+            resultPanel(live: true)
+            outputPathsPanel
+        case .animate:
+            animateForm
+            resultPanel(live: true)
+            outputPathsPanel
+        case .showcase:
+            showcaseForm
+            resultPanel(live: true)
+            outputPathsPanel
+        case .declarations:
+            declarationsForm
+            resultPanel(live: false)
+        case .exportConfig:
+            exportConfigForm
+            resultPanel(live: false)
+            outputPathsPanel
+        case .setup:
+            setupForm
+            resultPanel(live: true)
         case .assets:
             GlinaAssetsView(model: model)
         }
