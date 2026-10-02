@@ -150,6 +150,9 @@ struct GlinaRootView: View {
         case .declarations:
             declarationsForm
             resultPanel(live: false)
+        case .workspace:
+            workspaceForm
+            resultPanel(live: false)
         case .exportConfig:
             exportConfigForm
             resultPanel(live: false)

@@ -4,7 +4,7 @@ import Foundation
 /// title and a symbol, and the model maps the selection to a backend
 /// endpoint. No executable invocation is built from this state.
 enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
-    case sculpt, create, verify, animate, showcase, declarations, config, exportConfig, doctor, setup, assets
+    case sculpt, create, verify, animate, showcase, declarations, workspace, config, exportConfig, doctor, setup, assets
 
     var id: String { rawValue }
 
@@ -16,6 +16,7 @@ enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
         case .animate: return "Animate"
         case .showcase: return "Showcase"
         case .declarations: return "Declarations"
+        case .workspace: return "Workspace"
         case .config: return "Check Config"
         case .exportConfig: return "Export Config"
         case .doctor: return "Doctor"
@@ -32,6 +33,7 @@ enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
         case .animate: return "figure.walk.motion"
         case .showcase: return "sparkles.tv"
         case .declarations: return "list.bullet.clipboard"
+        case .workspace: return "tray.full"
         case .config: return "list.bullet.rectangle"
         case .exportConfig: return "square.and.arrow.up"
         case .doctor: return "waveform.path.ecg"
@@ -61,6 +63,9 @@ struct GlinaCommandDraft: Equatable, Sendable {
     var declarationVerb: GlinaDeclarationVerb = .list
     var declarationName = ""
     var declarationFile = ""
+    /// `workspace`: list the imported assets, make one active, or take one out.
+    var workspaceVerb: GlinaWorkspaceVerb = .list
+    var workspaceAsset = ""
     /// `export-config`: where the resolved, owner-only config is written.
     var exportPath = ""
     /// `setup`: only locate the tooling, or only say what provisioning would do.
@@ -87,6 +92,9 @@ struct GlinaCommandDraft: Equatable, Sendable {
             case .remove:
                 return declarationName.trimmingCharacters(in: .whitespaces).isEmpty ? "Name the declaration to remove." : nil
             }
+        case .workspace:
+            if workspaceVerb == .list { return nil }
+            return workspaceAsset.trimmingCharacters(in: .whitespaces).isEmpty ? "Name the imported asset, as the list shows its id." : nil
         case .exportConfig:
             return exportPath.trimmingCharacters(in: .whitespaces).isEmpty ? "Say where the resolved config should be written." : nil
         case .config, .doctor, .setup, .assets:
@@ -108,5 +116,10 @@ enum GlinaDeclarationVerb: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 }
-    }
+
+/// What a workspace run does: the verbs `glina workspace` takes.
+enum GlinaWorkspaceVerb: String, CaseIterable, Identifiable, Sendable {
+    case list, select, remove
+
+    var id: String { rawValue }
 }

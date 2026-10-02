@@ -74,6 +74,21 @@ extension GlinaRootView {
         }
     }
 
+    var workspaceForm: some View {
+        WisentSectionBox(title: "Workspace", detail: "The assets imported into Glina's workspace: list them, make one the active input, or take one out and delete the workspace's copy; the file it came from stays.") {
+            VStack(alignment: .leading, spacing: WisentDesign.Space.x3) {
+                Picker("Action", selection: $model.draft.workspaceVerb) {
+                    ForEach(GlinaWorkspaceVerb.allCases) { verb in Text(verb.rawValue).tag(verb) }
+                }
+                .pickerStyle(.segmented)
+                if model.draft.workspaceVerb != .list {
+                    TextField("asset id, as the list shows it", text: $model.draft.workspaceAsset)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+        }
+    }
+
     var exportConfigForm: some View {
         WisentSectionBox(title: "Export config", detail: "A resolved, owner-only copy of the config for a remote run; every skarbiec:// reference is answered here and the file is written with mode 0600.") {
             HStack(spacing: WisentDesign.Space.x3) {

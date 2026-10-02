@@ -53,6 +53,8 @@ extension GlinaModel {
                     name: draft.declarationName,
                     file: draft.declarationFile
                 )
+            case .workspace:
+                outcome = try await client.workspace(verb: draft.workspaceVerb, asset: draft.workspaceAsset)
             case .exportConfig:
                 outcome = try await client.exportConfig(out: draft.exportPath)
             case .setup:

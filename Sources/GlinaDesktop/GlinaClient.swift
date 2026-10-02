@@ -113,6 +113,12 @@ struct GlinaClient: Sendable {
         return try await run(arguments) { _ in }
     }
 
+    /// `glina workspace list|select <id>|remove <id>`: the imported assets,
+    /// the active one, and the two counterparts of an import.
+    func workspace(verb: GlinaWorkspaceVerb, asset: String) async throws -> GlinaOutcome {
+        try await run(verb == .list ? ["workspace", verb.rawValue] : ["workspace", verb.rawValue, asset]) { _ in }
+    }
+
     /// `glina export-config --out`: the resolved, owner-only config for a remote run.
     func exportConfig(out: String) async throws -> GlinaOutcome {
         try await run(["export-config", "--out", out]) { _ in }
