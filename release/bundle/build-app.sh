@@ -25,23 +25,16 @@ mkdir -p "$MACOS" "$FRAMEWORKS" "$RESOURCES"
 install -m 0644 "$ROOT/App/Info.plist" "$CONTENTS/Info.plist"
 plutil -replace CFBundleShortVersionString -string "$PRODUCT_VERSION" "$CONTENTS/Info.plist"
 plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$CONTENTS/Info.plist"
-# The feed URL is .feed_url of .wisent-desktop-release.json, the release
-# manifest wisent-desktop-update reads; WISENT_UPDATE_FEED_URL overrides it
-# for a staging feed. A bundle whose SUFeedURL is empty or not https would
-# never check for updates, so it fails the build here.
-RELEASE_MANIFEST="$ROOT/.wisent-desktop-release.json"
+# Stado resolves the deployment's update origin; source carries no host.
+# WISENT_UPDATE_FEED_URL explicitly overrides it for a staging feed.
 UPDATE_FEED_URL=${WISENT_UPDATE_FEED_URL:-}
-if [ -z "$UPDATE_FEED_URL" ] && [ -f "$RELEASE_MANIFEST" ]; then
-  command -v jq >/dev/null 2>&1 || {
-    printf 'jq is required to read %s\n' "$RELEASE_MANIFEST" >&2
-    exit 1
-  }
-  UPDATE_FEED_URL=$(jq -r '.feed_url // empty' "$RELEASE_MANIFEST")
+if [ -z "$UPDATE_FEED_URL" ]; then
+  UPDATE_FEED_URL=$(stado web origin url /api/release/appcast --query product=glina-desktop)
 fi
 case "$UPDATE_FEED_URL" in
   https://*) ;;
   '')
-    printf 'No update feed URL: set WISENT_UPDATE_FEED_URL, or .feed_url in %s. An app with an empty SUFeedURL can never check for updates.\n' "$RELEASE_MANIFEST" >&2
+    printf '%s\n' "Stado returned no update feed URL; declare an appcast origin or set WISENT_UPDATE_FEED_URL." >&2
     exit 1 ;;
   *)
     printf 'Update feed must use HTTPS: %s\n' "$UPDATE_FEED_URL" >&2

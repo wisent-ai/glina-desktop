@@ -6,6 +6,5 @@
   "bundle_path": ".build/Glina.app",
   "build_command": "GLINA_INSTALL_AFTER_BUILD=no ./release/bundle/build-app.sh",
   "archive_name": "Glina-{version}.zip",
-  "feed_url": "https://charless-mac-mini.tail6443b3.ts.net/api/release/appcast?product=glina-desktop",
   "minimum_system_version": "14.0"
 }
