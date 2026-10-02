@@ -38,10 +38,8 @@ extension GlinaModel {
                 outcome = try await client.verify(path: draft.assetPath, onLog: appendLog)
             case .config:
                 outcome = try await client.config()
-            case .blenderHealth:
-                outcome = try await client.blenderHealth()
-            case .welesTools:
-                outcome = try await client.welesTools()
+            case .doctor:
+                outcome = try await client.doctor()
             case .assets:
                 return
             }

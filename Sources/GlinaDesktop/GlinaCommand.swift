@@ -4,7 +4,7 @@ import Foundation
 /// title and a symbol, and the model maps the selection to a backend
 /// endpoint. No executable invocation is built from this state.
 enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
-    case sculpt, verify, config, blenderHealth, welesTools, assets
+    case sculpt, verify, config, doctor, assets
 
     var id: String { rawValue }
 
@@ -13,8 +13,7 @@ enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
         case .sculpt: return "Sculpt"
         case .verify: return "Verify"
         case .config: return "Check Config"
-        case .blenderHealth: return "Blender Health"
-        case .welesTools: return "Browser Tools"
+        case .doctor: return "Doctor"
         case .assets: return "Assets"
         }
     }
@@ -24,8 +23,7 @@ enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
         case .sculpt: return "hammer"
         case .verify: return "checkmark.seal"
         case .config: return "list.bullet.rectangle"
-        case .blenderHealth: return "waveform.path.ecg"
-        case .welesTools: return "globe"
+        case .doctor: return "waveform.path.ecg"
         case .assets: return "cube.transparent"
         }
     }
@@ -48,7 +46,7 @@ struct GlinaCommandDraft: Equatable, Sendable {
                 ? "Describe the asset to sculpt." : nil
         case .verify:
             return assetPath.isEmpty ? "Choose a .glb file." : nil
-        case .config, .blenderHealth, .welesTools, .assets:
+        case .config, .doctor, .assets:
             return nil
         }
     }

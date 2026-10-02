@@ -133,7 +133,7 @@ struct GlinaRootView: View {
         case .config:
             resultPanel(live: false)
             workspaceAndFirstRun
-        case .blenderHealth, .welesTools:
+        case .doctor:
             resultPanel(live: false)
         case .assets:
             GlinaAssetsView(model: model)

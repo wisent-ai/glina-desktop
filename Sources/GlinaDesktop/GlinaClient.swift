@@ -40,20 +40,18 @@ struct GlinaClient: Sendable {
         try await run(["check-config"]) { _ in }
     }
 
-    func welesTools() async throws -> GlinaOutcome {
-        try await run(["weles-tools"]) { _ in }
-    }
-
-    /// An unhealthy session exits 1 and says so on stdout alone; surface the
-    /// probe's own sentence as the refusal instead of an empty one.
-    func blenderHealth() async throws -> GlinaOutcome {
-        let outcome = try await run(["blender-health"]) { _ in }
-        guard outcome.status != 0, outcome.stderrText.isEmpty else { return outcome }
+    /// `glina doctor` exits 1 when any check failed and says which on stdout,
+    /// in the report itself; the bridges' own stderr chatter is not the
+    /// refusal. The refusal is the failed checks, each with the step that broke.
+    func doctor() async throws -> GlinaOutcome {
+        let outcome = try await run(["doctor"]) { _ in }
+        guard outcome.status != 0 else { return outcome }
+        let failed = Self.failedChecks(in: outcome.document)
         return GlinaOutcome(
             status: outcome.status,
             document: outcome.document,
             stderrText: outcome.stderrText,
-            refusal: "Blender MCP server answered but the execute_blender_code probe failed",
+            refusal: failed.isEmpty ? outcome.refusal : failed.joined(separator: "; "),
             paths: []
         )
     }
@@ -137,5 +135,18 @@ struct GlinaClient: Sendable {
 
     private static func extractPaths(from object: [String: Any]) -> [String] {
         pathKeys.compactMap { object[$0] as? String }
+    }
+
+    /// "<name>: <error>" for every check the doctor reported as not ok.
+    private static func failedChecks(in document: String) -> [String] {
+        guard let data = document.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let checks = object["checks"] as? [[String: Any]]
+        else { return [] }
+        return checks.compactMap { check in
+            guard check["ok"] as? Bool == false, let name = check["name"] as? String else { return nil }
+            let error = check["error"] as? String
+            return error.map { "\(name): \($0)" } ?? name
+        }
     }
 }
