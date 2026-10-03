@@ -93,7 +93,7 @@ extension GlinaModel {
         }
     }
 
-    func importAsset(from source: URL) async {
+    func importAsset(from source: URL, variantOf: String? = nil) async {
         guard !isRunning else { return }
         isRunning = true
         result = nil
@@ -107,18 +107,17 @@ extension GlinaModel {
         defer { isRunning = false }
         do {
             let client = try await makeClient()
-            let outcome = try await client.importAsset(source: source.path, onLog: appendLog)
+            let outcome = try await client.importAsset(source: source.path, variantOf: variantOf, onLog: appendLog)
             result = outcome
             outputPaths = outcome.paths
-            guard outcome.status == 0,
-                  let data = outcome.document.data(using: .utf8),
+            guard let data = outcome.document.data(using: .utf8),
                   let report = try? JSONDecoder().decode(GlinaAssetImport.self, from: data)
             else {
                 failure = outcome.refusal ?? "Glina returned an unreadable workspace import result."
                 return
             }
             assetImport = report
-            guard report.accepted, let destination = report.path else {
+            guard outcome.status == 0, report.accepted, let destination = report.path else {
                 failure = report.reason ?? "Glina did not accept this asset."
                 return
             }

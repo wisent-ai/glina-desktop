@@ -21,6 +21,7 @@ struct GlinaAssetImport: Decodable, Equatable {
     let id: String?
     let path: String?
     let reason: String?
+    let variantOf: String?
 
     var accepted: Bool {
         status == "imported" || status == "unchanged"
@@ -70,14 +71,22 @@ struct GlinaClient: Sendable {
         try await run(clip.isEmpty ? ["preview-anim", path] : ["preview-anim", path, "--clip", clip], onLog: onLog)
     }
 
+    func previewScene(path: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+        try await run(["preview-scene", path], onLog: onLog)
+    }
+
     func importAsset(
         source: String,
         name: String? = nil,
+        variantOf: String? = nil,
         onLog: @escaping @MainActor (String) -> Void
     ) async throws -> GlinaOutcome {
         var arguments = ["import", source]
         if let name, !name.isEmpty {
             arguments += ["--name", name]
+        }
+        if let variantOf, !variantOf.isEmpty {
+            arguments += ["--variant-of", variantOf]
         }
         return try await run(arguments, onLog: onLog)
     }
@@ -184,7 +193,9 @@ struct GlinaClient: Sendable {
     }
 
     private static func extractPaths(from object: [String: Any]) -> [String] {
-        pathKeys.compactMap { object[$0] as? String }
+        let artifacts = pathKeys.compactMap { object[$0] as? String }
+        if let output = object["outputPath"] as? String { return artifacts + [output] }
+        return artifacts
     }
 
     /// "<name>: <error>" for every check the doctor reported as not ok.

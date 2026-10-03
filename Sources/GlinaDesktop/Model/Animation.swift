@@ -3,6 +3,7 @@
 // looping GIF, which is what the window shows.
 
 import Foundation
+import WisentErrors
 
 extension GlinaModel {
 
@@ -48,5 +49,41 @@ extension GlinaModel {
         guard trimmed.count > maxCharacters else { return trimmed }
         return "…" + trimmed.suffix(maxCharacters)
     }
-}
+    func renderScenePreview(for glbURL: URL) async {
+        guard !isRenderingScene else { return }
+        isRenderingScene = true
+        sceneSourcePath = glbURL.path
+        scenePreviewURL = nil
+        sceneNote = nil
+        defer {
+            isRenderingScene = false
+            if scenePreviewURL == nil, let sceneNote {
+                WisentFailureReporter.shared.report(
+                    failurePoint: "glina.scene_preview",
+                    code: "unknown",
+                    service: "glina",
+                    detail: sceneNote
+                )
+            }
+        }
+        do {
+            let client = try await makeClient()
+            let outcome = try await client.previewScene(path: glbURL.path) { _ in }
+            guard outcome.status == 0, outcome.refusal == nil else {
+                sceneNote = Self.tail(outcome.refusal ?? "The scene render did not finish.")
+                return
+            }
+            guard let outPath = outcome.paths.first,
+                  FileManager.default.fileExists(atPath: outPath) else {
+                sceneNote = "Glina reported a scene preview without an image file: \(outcome.document)"
+                return
+            }
+            scenePreviewURL = URL(fileURLWithPath: outPath)
+            sceneNote = "Rendered \(outPath)"
+            refreshAssets()
+        } catch {
+            sceneNote = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
 }

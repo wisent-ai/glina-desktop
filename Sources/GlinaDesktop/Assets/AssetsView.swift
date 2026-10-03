@@ -43,6 +43,9 @@ struct GlinaAssetsView: View {
                         .foregroundStyle(model.assetsDirectory == nil ? WisentDesign.muted : WisentDesign.ink)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                    TextField("Variant of base id (optional)", text: $model.variantParent)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 200)
                     Spacer(minLength: 0)
                     Button("Import GLB…") { chooseAssetForImport() }
                         .disabled(model.isRunning)
@@ -81,7 +84,12 @@ struct GlinaAssetsView: View {
         panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
         panel.message = "Choose a GLB for Glina to validate and keep in its workspace."
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        Task { await model.importAsset(from: url) }
+        Task {
+            await model.importAsset(
+                from: url,
+                variantOf: model.variantParent.isEmpty ? nil : model.variantParent
+            )
+        }
     }
     private func presentPreview(urls: [URL], index: Int) {
         model.presentPreview(urls: urls, index: index)
@@ -137,8 +145,22 @@ struct GlinaAssetsView: View {
                 Spacer(minLength: 0)
                 if url.pathExtension.lowercased() == "glb" {
                     Button("Animate this") { model.selectedGLB = url }
+                    Button(model.isRenderingScene ? "Rendering scene…" : "Preview in scene") {
+                        Task { await model.renderScenePreview(for: url) }
+                    }
+                    .disabled(model.isRenderingScene)
                 }
                 Button("Reveal in Finder") { model.revealInFinder(url) }
+            }
+            if model.sceneSourcePath == url.path {
+                if let note = model.sceneNote {
+                    Text(note).font(WisentTypeScale.caption())
+                        .foregroundStyle(model.scenePreviewURL == nil ? WisentDesign.danger : WisentDesign.secondary)
+                }
+                if let imageURL = model.scenePreviewURL, let image = NSImage(contentsOf: imageURL) {
+                    Image(nsImage: image).resizable().aspectRatio(contentMode: .fit)
+                        .frame(maxHeight: 360)
+                }
             }
         }
     }
@@ -207,9 +229,6 @@ struct GlinaAssetsView: View {
         }
     }
 
-    private var placeholder: some View {
-        Image(systemName: "cube.transparent")
-    }
 
     /// A .glb tile shows the rendered sibling the pipeline already produced
     /// (smok.glb → smok-flap-preview.gif, kamien.glb → kamien-preview.png).
@@ -223,14 +242,6 @@ struct GlinaAssetsView: View {
         }
     }
 
-    private func tileTapped(_ url: URL) {
-        if url.pathExtension.lowercased() == "glb" {
-            model.selectedGLB = url
-            if let preview = matchedPreview(for: url) {
-                model.animatedPreviewURL = preview
-            }
-        }
-    }
 
     /// The animation workflow for one selected .glb: the operator names a
     /// clip (or leaves empty for the longest), Glina renders it through

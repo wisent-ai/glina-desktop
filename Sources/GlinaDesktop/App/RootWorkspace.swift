@@ -14,6 +14,8 @@ extension GlinaRootView {
             detail: "Import an existing GLB through Glina's quality gate, or replay the first-run guide."
         ) {
             VStack(alignment: .leading, spacing: WisentDesign.Space.x3) {
+                TextField("Variant of an imported base id (optional)", text: $model.variantParent)
+                    .textFieldStyle(.roundedBorder)
                 HStack(spacing: WisentDesign.Space.x3) {
                     Button("Import GLB…") { chooseAssetForImport(onboardingAttempt: false) }
                         .buttonStyle(WisentPrimaryButtonStyle())
@@ -48,7 +50,10 @@ extension GlinaRootView {
             onboarding.prepareToImport()
         }
         Task {
-            await model.importAsset(from: url)
+            await model.importAsset(
+                from: url,
+                variantOf: onboardingAttempt ? nil : (model.variantParent.isEmpty ? nil : model.variantParent)
+            )
             if onboardingAttempt {
                 if let destination = model.importedAssetPath {
                     await onboarding.observeImportedAsset(path: destination)
@@ -61,7 +66,8 @@ extension GlinaRootView {
 
     private func importSummary(_ report: GlinaAssetImport) -> String {
         if let path = report.path {
-            return "\(report.status.capitalized): \(path)"
+            let relation = report.variantOf.map { " (variant of \($0))" } ?? ""
+            return "\(report.status.capitalized): \(path)\(relation)"
         }
         return "\(report.status.capitalized): \(report.reason ?? "No workspace state changed.")"
     }

@@ -38,6 +38,7 @@ final class GlinaModel: ObservableObject {
     @Published var outputPaths: [String] = []
     @Published var assetImport: GlinaAssetImport?
     @Published var importedAssetPath: String?
+    @Published var variantParent = ""
 
     // Assets browser.
     @Published var assetsDirectory: URL?
@@ -64,6 +65,10 @@ final class GlinaModel: ObservableObject {
     @Published var animationNote: String?
     @Published var animatedPreviewURL: URL?
     @Published var selectedGLB: URL?
+    @Published var isRenderingScene = false
+    @Published var scenePreviewURL: URL?
+    @Published var sceneSourcePath: String?
+    @Published var sceneNote: String?
 
     /// `Glina --assets-dir PATH` opens straight onto an output directory.
     init(assetsDirectory: URL? = nil) {

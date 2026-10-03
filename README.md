@@ -9,10 +9,11 @@ Blender MCP execution, GLB verification, or workspace persistence.
 
 
 - Import an existing `.glb` during first use, from Assets, or from Check Config.
-  Glina stages and verifies the exact bytes, persists only an accepted asset,
-  preserves name conflicts, and reports imported, unchanged, conflicting, or
-  rejected. The accepted destination becomes the Assets directory, animation
-  selection, and Verify input.
+  Assets and Check Config also accept a base asset id to import a distinct
+  variant. Glina stages and verifies the exact bytes, persists only accepted
+  content, and reports the structured refusal reason when it rejects an import.
+  The accepted destination becomes the Assets directory, animation selection,
+  and Verify input. A base cannot be removed while variants depend on it.
 - Sculpt a game asset from a text prompt, round by round through a live
   Blender MCP session.
 - Verify a `.glb` against the structural quality gate (valid glTF container,
@@ -21,17 +22,19 @@ Blender MCP execution, GLB verification, or workspace persistence.
   the CLI itself; secrets only ever resolve from Skarbiec references.
 - Probe the live Blender MCP session health.
 - List the browser-layer tools the Weles MCP server exposes.
-- Browse an output directory for produced `.glb` and `.png` artifacts with
-  Quick Look preview and Reveal in Finder.
+- Browse output `.glb` and `.png` artifacts with Quick Look and Reveal in Finder.
+- Render a selected GLB on neutral ground from Assets with **Preview in scene**.
+  The PNG appears in the gallery; a failed Blender import or render appears as
+  a refusal rather than a fabricated image.
 
-The app shows the CLI's own output and refusals rather than paraphrasing the
-quality gate. Each operation is one finite `glina` command (`check-config`,
+The app shows the CLI's output and refusals rather than paraphrasing the
+quality gate. Each operation runs one finite `glina` command (`check-config`,
 `doctor`, `setup`, `export-config`, `sculpt`, `create`, `verify`, `animate`,
-`showcase`, `showcases`/`presets`, `preview-anim`, `import`):
-its output streams into the live log as it is written, its exit status and the
-JSON document it prints last are the result, and a failure shows the last line
-it wrote to stderr. Import uses the same `pipeline/workspace.js` operation as
-the CLI because it is the CLI.
+`showcase`, `showcases`/`presets`, `preview-anim`, `preview-scene`, `import`,
+`workspace`). Output streams into the live log; the exit status and final JSON
+document are the result. A rejected import displays its `reason`, while other
+failures show stderr or failed doctor checks. Both windows use the same
+workspace import as the CLI.
 
 ## Requirements
 
