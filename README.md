@@ -56,6 +56,12 @@ Then build and install the app:
 The application bundle is installed to `~/Applications/Glina.app` and must be
 signed with a stable Developer ID or Apple Development identity.
 
+Releases go through Stado: `.wisent-release.json` runs
+`release/stado-release.sh` on a darwin builder, which builds the same bundle
+with `GLINA_INSTALL_AFTER_BUILD=no`, signs it with the Developer ID identity
+the manifest hands in as `MACOS_SIGN_IDENTITY`, and stages `Glina.app`.
+`stado product install glina --surface desktop` installs that release.
+
 ## License
 
 MIT

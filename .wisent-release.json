@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "product": "glina-desktop",
+  "releases": true,
+  "version_source": {
+    "kind": "regex",
+    "path": "App/Info.plist",
+    "pattern": "(?s)<key>CFBundleShortVersionString</key>\\s*<string>(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)</string>"
+  },
+  "inputs": {},
+  "platforms": {
+    "darwin-arm64": {
+      "runner_platform": "darwin-arm64",
+      "quality": [],
+      "build": {
+        "argv": ["sh", "release/stado-release.sh"]
+      },
+      "stage": {
+        "Glina.app": "Glina.app"
+      },
+      "secret_env": {
+        "MACOS_SIGN_IDENTITY": "macos-developer-id#sign_identity"
+      }
+    }
+  },
+  "promotion": {
+    "channels": ["stable"],
+    "reconcile": false
+  },
+  "deliveries": []
+}
