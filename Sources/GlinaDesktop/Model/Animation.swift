@@ -2,6 +2,7 @@
 // walks the same Blender bridge every other workflow does and hands back a
 // looping GIF, which is what the window shows.
 
+import AppKit
 import Foundation
 import WisentErrors
 
@@ -53,11 +54,11 @@ extension GlinaModel {
         guard !isRenderingScene else { return }
         isRenderingScene = true
         sceneSourcePath = glbURL.path
-        scenePreviewURL = nil
+        scenePreviewImage = nil
         sceneNote = nil
         defer {
             isRenderingScene = false
-            if scenePreviewURL == nil, let sceneNote {
+            if scenePreviewImage == nil, let sceneNote {
                 WisentFailureReporter.shared.report(
                     failurePoint: "glina.scene_preview",
                     code: "unknown",
@@ -73,12 +74,16 @@ extension GlinaModel {
                 sceneNote = Self.tail(outcome.refusal ?? "The scene render did not finish.")
                 return
             }
-            guard let outPath = outcome.paths.first,
-                  FileManager.default.fileExists(atPath: outPath) else {
-                sceneNote = "Glina reported a scene preview without an image file: \(outcome.document)"
+            guard let outPath = outcome.paths.first else {
+                sceneNote = "Glina reported a scene preview without an image path: \(outcome.document)"
                 return
             }
-            scenePreviewURL = URL(fileURLWithPath: outPath)
+            let imageURL = URL(fileURLWithPath: outPath)
+            guard let image = NSImage(contentsOf: imageURL), image.isValid else {
+                sceneNote = "Glina reported a scene preview that could not be opened as an image: \(outPath)"
+                return
+            }
+            scenePreviewImage = image
             sceneNote = "Rendered \(outPath)"
             refreshAssets()
         } catch {

@@ -66,7 +66,7 @@ final class GlinaModel: ObservableObject {
     @Published var animatedPreviewURL: URL?
     @Published var selectedGLB: URL?
     @Published var isRenderingScene = false
-    @Published var scenePreviewURL: URL?
+    @Published var scenePreviewImage: NSImage?
     @Published var sceneSourcePath: String?
     @Published var sceneNote: String?
 

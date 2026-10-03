@@ -155,9 +155,9 @@ struct GlinaAssetsView: View {
             if model.sceneSourcePath == url.path {
                 if let note = model.sceneNote {
                     Text(note).font(WisentTypeScale.caption())
-                        .foregroundStyle(model.scenePreviewURL == nil ? WisentDesign.danger : WisentDesign.secondary)
+                        .foregroundStyle(model.scenePreviewImage == nil ? WisentDesign.danger : WisentDesign.secondary)
                 }
-                if let imageURL = model.scenePreviewURL, let image = NSImage(contentsOf: imageURL) {
+                if let image = model.scenePreviewImage {
                     Image(nsImage: image).resizable().aspectRatio(contentMode: .fit)
                         .frame(maxHeight: 360)
                 }
