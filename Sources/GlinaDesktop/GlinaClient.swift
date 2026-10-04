@@ -59,8 +59,9 @@ struct GlinaClient: Sendable {
 
     // MARK: - Workflows
 
-    func sculpt(prompt: String, rounds: Int, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
-        try await run(["sculpt", prompt, "--rounds", String(rounds)], onLog: onLog)
+    func sculpt(prompt: String, rounds: Int?, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+        let cap = rounds.map { ["--rounds", String($0)] } ?? []
+        return try await run(["sculpt", prompt] + cap, onLog: onLog)
     }
 
     func verify(path: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {

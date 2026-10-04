@@ -38,9 +38,9 @@ final class FrameDrivenGIFView: NSImageView {
     private(set) var loadedURL: URL?
     private var loadedModificationDate: Date?
     private var nextReloadCheck = Date.distantPast
-    /// A frame without a delay shows for a tenth of a second; browsers clamp anything shorter than 20 ms.
-    private static let defaultFrameDelay: TimeInterval = 0.1
-    private static let minimumFrameDelay: TimeInterval = 0.02
+    /// Whether every frame states its own delay. A file that does not is shown
+    /// as its first frame rather than played at a speed this view invented.
+    private var everyFrameTimed = true
     private static let nanosecondsPerSecond: Double = 1_000_000_000
 
     func needsReload(for url: URL) -> Bool {
@@ -54,6 +54,7 @@ final class FrameDrivenGIFView: NSImageView {
         nextReloadCheck = Date().addingTimeInterval(1)
         frames = []
         delays = []
+        everyFrameTimed = true
         frameIndex = 0
         let options = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithURL(url as CFURL, options) else {
@@ -65,18 +66,21 @@ final class FrameDrivenGIFView: NSImageView {
             frames.append(NSImage(cgImage: cgImage, size: .zero))
             let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
             let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
-            let rawDelay =
-                (gif?[kCGImagePropertyGIFUnclampedDelayTime] as? Double)
-                ?? (gif?[kCGImagePropertyGIFDelayTime] as? Double)
-                ?? Self.defaultFrameDelay
-            delays.append(max(rawDelay, Self.minimumFrameDelay))
+            // ImageIO's delay is the file's own, with the same floor every
+            // GIF decoder applies to delays too short to honour.
+            if let delay = gif?[kCGImagePropertyGIFDelayTime] as? Double {
+                delays.append(delay)
+            } else {
+                everyFrameTimed = false
+                delays.append(0)
+            }
         }
         guard !frames.isEmpty else {
             image = nil
             return
         }
         image = frames[frameIndex]
-        if frames.count > 1 { startAnimation() }
+        if frames.count > 1 && everyFrameTimed { startAnimation() }
     }
 
     func stop() {
@@ -89,7 +93,7 @@ final class FrameDrivenGIFView: NSImageView {
         animationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             while !Task.isCancelled, self.frames.count > 1 {
-                let delay = self.delays.indices.contains(self.frameIndex) ? self.delays[self.frameIndex] : Self.defaultFrameDelay
+                let delay = self.delays[self.frameIndex]
                 try? await Task.sleep(nanoseconds: UInt64(delay * Self.nanosecondsPerSecond))
                 guard !Task.isCancelled else { return }
                 if Date() >= self.nextReloadCheck {

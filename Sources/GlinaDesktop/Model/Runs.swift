@@ -33,7 +33,7 @@ extension GlinaModel {
             let outcome: GlinaOutcome
             switch draft.action {
             case .sculpt:
-                outcome = try await client.sculpt(prompt: draft.prompt, rounds: draft.rounds, onLog: appendLog)
+                outcome = try await client.sculpt(prompt: draft.prompt, rounds: draft.roundCap, onLog: appendLog)
             case .verify:
                 outcome = try await client.verify(path: draft.assetPath, onLog: appendLog)
             case .config:

@@ -17,12 +17,12 @@ extension GlinaRootView {
                 TextField("gothic dwarven tower, low-poly", text: $model.draft.prompt, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(3...8)
-                Stepper(value: $model.draft.rounds, in: 1...64) {
-                    HStack {
-                        Text("Max rounds").font(WisentTypeScale.bodyStrong()).foregroundStyle(WisentDesign.ink)
-                        Spacer()
-                        Text("\(model.draft.rounds)").font(WisentTypeScale.bodyStrong()).foregroundStyle(WisentDesign.ink)
-                    }
+                HStack {
+                    Text("Max rounds").font(WisentTypeScale.bodyStrong()).foregroundStyle(WisentDesign.ink)
+                    Spacer()
+                    TextField("from config", text: $model.draft.rounds)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 120)
                 }
                 .frame(maxWidth: 320)
             }

@@ -44,13 +44,11 @@ enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
 }
 
 struct GlinaCommandDraft: Equatable, Sendable {
-    /// Rounds a sculpt may take before Glina stops refining, unless the operator sets another cap.
-    static let defaultRounds = 12
-
     var action: GlinaAction = .sculpt
     var prompt = ""
-    /// Round cap sent with the sculpt request.
-    var rounds = Self.defaultRounds
+    /// Round cap for this sculpt, as the operator typed it. Empty sends none,
+    /// and Glina takes `llm.maxRounds` from its config or refuses by name.
+    var rounds = ""
     var assetPath = ""
     /// `create`: the race the studio flow draws the asset for; empty sends none.
     var race = ""
@@ -75,8 +73,11 @@ struct GlinaCommandDraft: Equatable, Sendable {
     var validationProblem: String? {
         switch action {
         case .sculpt, .create:
-            return prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? "Describe the asset to make." : nil
+            if prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Describe the asset to make." }
+            if action == .sculpt, !rounds.isEmpty, roundCap == nil {
+                return "Max rounds must be a whole number above zero, or empty to use the config's llm.maxRounds."
+            }
+            return nil
         case .verify:
             return assetPath.isEmpty ? "Choose a .glb file." : nil
         case .animate:
@@ -100,6 +101,12 @@ struct GlinaCommandDraft: Equatable, Sendable {
         case .config, .doctor, .setup, .assets:
             return nil
         }
+    }
+
+    /// The typed round cap, when it is a whole number above zero.
+    var roundCap: Int? {
+        guard let value = Int(rounds.trimmingCharacters(in: .whitespaces)), value > 0 else { return nil }
+        return value
     }
 }
 
