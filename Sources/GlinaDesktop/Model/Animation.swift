@@ -18,7 +18,7 @@ extension GlinaModel {
             let client = try await makeClient()
             let outcome = try await client.previewAnim(path: glbURL.path, clip: clip) { _ in }
             guard outcome.status == 0, outcome.refusal == nil else {
-                animationNote = Self.tail(outcome.refusal ?? "The render did not finish.")
+                animationNote = (outcome.refusal ?? "The render did not finish.").trimmingCharacters(in: .whitespacesAndNewlines)
                 WisentFailureReporter.shared.report(
                     failurePoint: "glina.animation_preview",
                     code: "unknown",
@@ -32,7 +32,7 @@ extension GlinaModel {
                 refreshAssets()
                 animationNote = "rendered " + outPath
             } else {
-                animationNote = Self.tail(outcome.document)
+                animationNote = outcome.document.trimmingCharacters(in: .whitespacesAndNewlines)
             }
         } catch {
             animationNote = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -45,11 +45,6 @@ extension GlinaModel {
         }
     }
 
-    static func tail(_ text: String, maxCharacters: Int = 400) -> String {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count > maxCharacters else { return trimmed }
-        return "…" + trimmed.suffix(maxCharacters)
-    }
     func renderScenePreview(for glbURL: URL) async {
         guard !isRenderingScene else { return }
         isRenderingScene = true
@@ -71,7 +66,7 @@ extension GlinaModel {
             let client = try await makeClient()
             let outcome = try await client.previewScene(path: glbURL.path) { _ in }
             guard outcome.status == 0, outcome.refusal == nil else {
-                sceneNote = Self.tail(outcome.refusal ?? "The scene render did not finish.")
+                sceneNote = (outcome.refusal ?? "The scene render did not finish.").trimmingCharacters(in: .whitespacesAndNewlines)
                 return
             }
             guard let outPath = outcome.paths.first else {
