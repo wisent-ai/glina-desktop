@@ -4,7 +4,8 @@ import Foundation
 /// title and a symbol, and the model maps the selection to a backend
 /// endpoint. No executable invocation is built from this state.
 enum GlinaAction: String, CaseIterable, Identifiable, Sendable {
-    case sculpt, create, verify, animate, showcase, declarations, workspace, config, exportConfig, doctor, setup, assets
+    case sculpt, create, verify, animate, showcase, declarations, workspace, config, exportConfig,
+        doctor, setup, assets
 
     var id: String { rawValue }
 
@@ -73,31 +74,41 @@ struct GlinaCommandDraft: Equatable, Sendable {
     var validationProblem: String? {
         switch action {
         case .sculpt, .create:
-            if prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Describe the asset to make." }
+            if prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return "Describe the asset to make."
+            }
             if action == .sculpt, !rounds.isEmpty, roundCap == nil {
-                return "Max rounds must be a whole number above zero, or empty to use the config's llm.maxRounds."
+                return
+                    "Max rounds must be a whole number above zero, or empty to use the config's llm.maxRounds."
             }
             return nil
         case .verify:
             return assetPath.isEmpty ? "Choose a .glb file." : nil
         case .animate:
-            return preset.trimmingCharacters(in: .whitespaces).isEmpty ? "Name the declared preset to apply." : nil
+            return preset.trimmingCharacters(in: .whitespaces).isEmpty
+                ? "Name the declared preset to apply." : nil
         case .showcase:
-            return showcaseAsset.trimmingCharacters(in: .whitespaces).isEmpty ? "Name the declared showcase asset." : nil
+            return showcaseAsset.trimmingCharacters(in: .whitespaces).isEmpty
+                ? "Name the declared showcase asset." : nil
         case .declarations:
             switch declarationVerb {
             case .list: return nil
             case .add:
-                if declarationName.trimmingCharacters(in: .whitespaces).isEmpty { return "Name the declaration." }
+                if declarationName.trimmingCharacters(in: .whitespaces).isEmpty {
+                    return "Name the declaration."
+                }
                 return declarationFile.isEmpty ? "Choose the JSON file that declares it." : nil
             case .remove:
-                return declarationName.trimmingCharacters(in: .whitespaces).isEmpty ? "Name the declaration to remove." : nil
+                return declarationName.trimmingCharacters(in: .whitespaces).isEmpty
+                    ? "Name the declaration to remove." : nil
             }
         case .workspace:
             if workspaceVerb == .list { return nil }
-            return workspaceAsset.trimmingCharacters(in: .whitespaces).isEmpty ? "Name the imported asset, as the list shows its id." : nil
+            return workspaceAsset.trimmingCharacters(in: .whitespaces).isEmpty
+                ? "Name the imported asset, as the list shows its id." : nil
         case .exportConfig:
-            return exportPath.trimmingCharacters(in: .whitespaces).isEmpty ? "Say where the resolved config should be written." : nil
+            return exportPath.trimmingCharacters(in: .whitespaces).isEmpty
+                ? "Say where the resolved config should be written." : nil
         case .config, .doctor, .setup, .assets:
             return nil
         }
@@ -105,7 +116,9 @@ struct GlinaCommandDraft: Equatable, Sendable {
 
     /// The typed round cap, when it is a whole number above zero.
     var roundCap: Int? {
-        guard let value = Int(rounds.trimmingCharacters(in: .whitespaces)), value > 0 else { return nil }
+        guard let value = Int(rounds.trimmingCharacters(in: .whitespaces)), value > 0 else {
+            return nil
+        }
         return value
     }
 }

@@ -8,7 +8,9 @@ import WisentDesignSystem
 /// the data source is installed before the panel is keyed, so no responder
 /// in the chain has to opt in first.
 @MainActor
-final class AssetPreviewController: NSObject, @preconcurrency QLPreviewPanelDataSource, @preconcurrency QLPreviewPanelDelegate {
+final class AssetPreviewController: NSObject, @preconcurrency QLPreviewPanelDataSource,
+    @preconcurrency QLPreviewPanelDelegate
+{
     let items: [URL]
 
     init(items: [URL]) {
@@ -30,17 +32,19 @@ final class AssetPreviewController: NSObject, @preconcurrency QLPreviewPanelData
 struct GlinaAssetsView: View {
     @ObservedObject var model: GlinaModel
 
-
     var body: some View {
         VStack(alignment: .leading, spacing: WisentDesign.Space.x4) {
             WisentSectionBox(
                 title: "Output directory",
-                detail: "Where Glina writes sculpted assets. The browser lists every .glb and .png beneath it."
+                detail:
+                    "Where Glina writes sculpted assets. The browser lists every .glb and .png beneath it."
             ) {
                 HStack(spacing: WisentDesign.Space.x3) {
                     Text(model.assetsDirectory?.path ?? "No directory chosen")
                         .font(WisentTypeScale.identifier())
-                        .foregroundStyle(model.assetsDirectory == nil ? WisentDesign.muted : WisentDesign.ink)
+                        .foregroundStyle(
+                            model.assetsDirectory == nil ? WisentDesign.muted : WisentDesign.ink
+                        )
                         .lineLimit(1)
                         .truncationMode(.middle)
                     TextField("Variant of base id (optional)", text: $model.variantParent)
@@ -55,10 +59,12 @@ struct GlinaAssetsView: View {
                     }
                 }
                 if let imported = model.assetImport {
-                    Text(imported.path.map { "\(imported.status.capitalized): \($0)" }
-                        ?? "\(imported.status.capitalized): \(imported.reason ?? "No workspace state changed.")")
-                        .font(WisentTypeScale.caption())
-                        .foregroundStyle(imported.accepted ? WisentDesign.success : WisentDesign.danger)
+                    Text(
+                        imported.path.map { "\(imported.status.capitalized): \($0)" }
+                            ?? "\(imported.status.capitalized): \(imported.reason ?? "No workspace state changed.")"
+                    )
+                    .font(WisentTypeScale.caption())
+                    .foregroundStyle(imported.accepted ? WisentDesign.success : WisentDesign.danger)
                 }
             }
 
@@ -68,7 +74,8 @@ struct GlinaAssetsView: View {
             } else {
                 WisentEmptyPanel(
                     title: "No output directory",
-                    detail: "Choose the folder your sculpted assets are saved in, then browse what Glina produced.",
+                    detail:
+                        "Choose the folder your sculpted assets are saved in, then browse what Glina produced.",
                     symbol: "cube.transparent"
                 )
             }
@@ -155,7 +162,9 @@ struct GlinaAssetsView: View {
             if model.sceneSourcePath == url.path {
                 if let note = model.sceneNote {
                     Text(note).font(WisentTypeScale.caption())
-                        .foregroundStyle(model.scenePreviewImage == nil ? WisentDesign.danger : WisentDesign.secondary)
+                        .foregroundStyle(
+                            model.scenePreviewImage == nil
+                                ? WisentDesign.danger : WisentDesign.secondary)
                 }
                 if let image = model.scenePreviewImage {
                     Image(nsImage: image).resizable().aspectRatio(contentMode: .fit)
@@ -179,7 +188,9 @@ struct GlinaAssetsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(index == model.galleryIndex ? WisentDesign.brand : .clear, lineWidth: 2)
+                                .stroke(
+                                    index == model.galleryIndex ? WisentDesign.brand : .clear,
+                                    lineWidth: 2)
                         )
                         .contentShape(Rectangle())
                         .onTapGesture { model.galleryIndex = index }
@@ -229,7 +240,6 @@ struct GlinaAssetsView: View {
         }
     }
 
-
     /// A .glb tile shows the rendered sibling the pipeline already produced
     /// (smok.glb → smok-flap-preview.gif, kamien.glb → kamien-preview.png).
     private func matchedPreview(for glbURL: URL) -> URL? {
@@ -241,7 +251,6 @@ struct GlinaAssetsView: View {
                 && candidate.deletingPathExtension().lastPathComponent.hasPrefix(stem)
         }
     }
-
 
     /// The animation workflow for one selected .glb: the operator names a
     /// clip (or leaves empty for the longest), Glina renders it through

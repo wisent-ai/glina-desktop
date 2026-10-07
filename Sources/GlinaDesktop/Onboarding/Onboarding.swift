@@ -40,18 +40,23 @@ private struct GlinaJourneyTransport: JourneyTransport {
     func readBundle(productId: String, journeyId: String) async throws -> JourneyBundle {
         let bundle = try await base.readBundle(productId: productId, journeyId: journeyId)
         guard bundle.definition.journeyVersion == GlinaJourney.journeyVersion,
-              bundle.definition.firstSuccessFact == GlinaJourney.firstSuccessFact
+            bundle.definition.firstSuccessFact == GlinaJourney.firstSuccessFact
         else {
             throw JourneyClientError.invalid("Glina journey identity")
         }
         return bundle
     }
 
-    func readState(productId: String, attemptId: UUID, subjectHash: String) async throws -> JSONValue? {
-        try await base.readState(productId: productId, attemptId: attemptId, subjectHash: subjectHash)
+    func readState(productId: String, attemptId: UUID, subjectHash: String) async throws
+        -> JSONValue?
+    {
+        try await base.readState(
+            productId: productId, attemptId: attemptId, subjectHash: subjectHash)
     }
 
-    func assignExperiment(request: JourneyAssignmentRequest) async throws -> JourneyAssignmentResponse {
+    func assignExperiment(request: JourneyAssignmentRequest) async throws
+        -> JourneyAssignmentResponse
+    {
         try await base.assignExperiment(request: request)
     }
 
@@ -136,10 +141,12 @@ final class GlinaOnboarding: ObservableObject {
         isWorking = true
         defer { isWorking = false }
         do {
-            guard try await client.advance(
-                evidence: [:],
-                evidenceRevision: GlinaJourney.evidenceRevision
-            ) != nil else { return }
+            guard
+                try await client.advance(
+                    evidence: [:],
+                    evidenceRevision: GlinaJourney.evidenceRevision
+                ) != nil
+            else { return }
             screen = await client.currentScreen
             try await expose(using: client)
         } catch {

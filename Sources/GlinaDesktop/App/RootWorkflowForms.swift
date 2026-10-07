@@ -11,23 +11,33 @@ import WisentDesignSystem
 extension GlinaRootView {
 
     var createForm: some View {
-        WisentSectionBox(title: "Prompt", detail: "The studio flow through the Weles browser layer.") {
+        WisentSectionBox(
+            title: "Prompt", detail: "The studio flow through the Weles browser layer."
+        ) {
             VStack(spacing: WisentDesign.Space.x3) {
                 TextField("dwarven axe warrior", text: $model.draft.prompt, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(3...8)
-                TextField("race (optional): humans, dwarves, elves, skeletons", text: $model.draft.race)
-                    .textFieldStyle(.roundedBorder)
+                TextField(
+                    "race (optional): humans, dwarves, elves, skeletons", text: $model.draft.race
+                )
+                .textFieldStyle(.roundedBorder)
             }
         }
     }
 
     var animateForm: some View {
-        WisentSectionBox(title: "Animate", detail: "A declared preset's visibly moving actions, applied to an asset.") {
+        WisentSectionBox(
+            title: "Animate",
+            detail: "A declared preset's visibly moving actions, applied to an asset."
+        ) {
             VStack(spacing: WisentDesign.Space.x3) {
                 HStack(spacing: WisentDesign.Space.x3) {
-                    TextField("asset .glb (empty: the active imported asset)", text: $model.draft.assetPath)
-                        .textFieldStyle(.roundedBorder)
+                    TextField(
+                        "asset .glb (empty: the active imported asset)",
+                        text: $model.draft.assetPath
+                    )
+                    .textFieldStyle(.roundedBorder)
                     Button("Browse…") { chooseGlb(for: "Choose the .glb to animate.") }
                 }
                 TextField("preset name, as glina presets lists it", text: $model.draft.preset)
@@ -38,13 +48,19 @@ extension GlinaRootView {
 
     var showcaseForm: some View {
         WisentSectionBox(title: "Showcase", detail: "Build a declared animated reference asset.") {
-            TextField("showcase asset name, as glina showcases lists it", text: $model.draft.showcaseAsset)
-                .textFieldStyle(.roundedBorder)
+            TextField(
+                "showcase asset name, as glina showcases lists it", text: $model.draft.showcaseAsset
+            )
+            .textFieldStyle(.roundedBorder)
         }
     }
 
     var declarationsForm: some View {
-        WisentSectionBox(title: "Declarations", detail: "The showcases and presets glina showcase and glina animate read: list them, add one from a JSON file, or remove one.") {
+        WisentSectionBox(
+            title: "Declarations",
+            detail:
+                "The showcases and presets glina showcase and glina animate read: list them, add one from a JSON file, or remove one."
+        ) {
             VStack(alignment: .leading, spacing: WisentDesign.Space.x3) {
                 Picker("Kind", selection: $model.draft.declarationKind) {
                     ForEach(GlinaDeclarationKind.allCases) { kind in Text(kind.rawValue).tag(kind) }
@@ -55,8 +71,11 @@ extension GlinaRootView {
                 }
                 .pickerStyle(.segmented)
                 if model.draft.declarationVerb != .list {
-                    TextField("name: lowercase letters, digits and dashes", text: $model.draft.declarationName)
-                        .textFieldStyle(.roundedBorder)
+                    TextField(
+                        "name: lowercase letters, digits and dashes",
+                        text: $model.draft.declarationName
+                    )
+                    .textFieldStyle(.roundedBorder)
                 }
                 if model.draft.declarationVerb == .add {
                     HStack(spacing: WisentDesign.Space.x3) {
@@ -66,16 +85,22 @@ extension GlinaRootView {
                     }
                 }
                 if model.draft.declarationVerb == .remove {
-                    Text("Removing a declaration deletes its file; glina animate and glina showcase then refuse the name and list what remains.")
-                        .font(WisentTypeScale.caption())
-                        .foregroundStyle(WisentDesign.muted)
+                    Text(
+                        "Removing a declaration deletes its file; glina animate and glina showcase then refuse the name and list what remains."
+                    )
+                    .font(WisentTypeScale.caption())
+                    .foregroundStyle(WisentDesign.muted)
                 }
             }
         }
     }
 
     var workspaceForm: some View {
-        WisentSectionBox(title: "Workspace", detail: "The assets imported into Glina's workspace: list them, make one the active input, or take one out and delete the workspace's copy; the file it came from stays.") {
+        WisentSectionBox(
+            title: "Workspace",
+            detail:
+                "The assets imported into Glina's workspace: list them, make one the active input, or take one out and delete the workspace's copy; the file it came from stays."
+        ) {
             VStack(alignment: .leading, spacing: WisentDesign.Space.x3) {
                 Picker("Action", selection: $model.draft.workspaceVerb) {
                     ForEach(GlinaWorkspaceVerb.allCases) { verb in Text(verb.rawValue).tag(verb) }
@@ -90,7 +115,11 @@ extension GlinaRootView {
     }
 
     var exportConfigForm: some View {
-        WisentSectionBox(title: "Export config", detail: "A resolved, owner-only copy of the config for a remote run; every skarbiec:// reference is answered here and the file is written with mode 0600.") {
+        WisentSectionBox(
+            title: "Export config",
+            detail:
+                "A resolved, owner-only copy of the config for a remote run; every skarbiec:// reference is answered here and the file is written with mode 0600."
+        ) {
             HStack(spacing: WisentDesign.Space.x3) {
                 TextField("/path/to/resolved-config.json", text: $model.draft.exportPath)
                     .textFieldStyle(.roundedBorder)
@@ -100,9 +129,14 @@ extension GlinaRootView {
     }
 
     var setupForm: some View {
-        WisentSectionBox(title: "Setup", detail: "Provision Blender, uv and the Blender MCP bridge, or only locate them.") {
+        WisentSectionBox(
+            title: "Setup",
+            detail: "Provision Blender, uv and the Blender MCP bridge, or only locate them."
+        ) {
             VStack(alignment: .leading, spacing: WisentDesign.Space.x2) {
-                Toggle("Only check what is installed; install nothing", isOn: $model.draft.setupCheckOnly)
+                Toggle(
+                    "Only check what is installed; install nothing",
+                    isOn: $model.draft.setupCheckOnly)
                 Toggle("Dry run: say what provisioning would do", isOn: $model.draft.setupDryRun)
             }
         }

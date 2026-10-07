@@ -52,7 +52,8 @@ final class GlinaDesktopAppDelegate: NSObject, NSApplicationDelegate {
     private static func launchAssetsDirectory() -> URL? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let index = arguments.firstIndex(of: "--assets-dir"),
-              arguments.indices.contains(index + 1) else { return nil }
+            arguments.indices.contains(index + 1)
+        else { return nil }
         return URL(fileURLWithPath: arguments[index + 1])
     }
 

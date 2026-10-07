@@ -60,7 +60,9 @@ struct GlinaRootView: View {
                 WisentErrorBanner(
                     title: "Glina first use",
                     detail: failure,
-                    action: WisentAction("Dismiss", kind: .secondary) { onboarding.errorMessage = nil }
+                    action: WisentAction("Dismiss", kind: .secondary) {
+                        onboarding.errorMessage = nil
+                    }
                 )
                 .padding(WisentDesign.Space.x4)
             }
@@ -99,7 +101,9 @@ struct GlinaRootView: View {
                         Spacer()
                     }
                     .font(WisentTypeScale.bodyStrong())
-                    .foregroundStyle(model.draft.action == action ? WisentDesign.ink : WisentDesign.secondary)
+                    .foregroundStyle(
+                        model.draft.action == action ? WisentDesign.ink : WisentDesign.secondary
+                    )
                     .padding(.horizontal, WisentDesign.Space.x3)
                     .frame(height: 36)
                     .background(

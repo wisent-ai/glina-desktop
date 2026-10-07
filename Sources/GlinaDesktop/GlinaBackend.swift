@@ -20,7 +20,8 @@ enum GlinaCommand {
     static func executable() throws -> URL {
         let manager = FileManager.default
         let home = manager.homeDirectoryForCurrentUser
-        let candidates = (ProcessInfo.processInfo.environment["PATH"] ?? "")
+        let candidates =
+            (ProcessInfo.processInfo.environment["PATH"] ?? "")
             .split(separator: ":")
             .map { URL(fileURLWithPath: String($0)).appendingPathComponent("glina") }
             + [
@@ -29,7 +30,8 @@ enum GlinaCommand {
                 URL(fileURLWithPath: "/opt/homebrew/bin/glina"),
                 URL(fileURLWithPath: "/usr/local/bin/glina"),
             ]
-        guard let found = candidates.first(where: { manager.isExecutableFile(atPath: $0.path) }) else {
+        guard let found = candidates.first(where: { manager.isExecutableFile(atPath: $0.path) })
+        else {
             throw GlinaBackendError.executableMissing
         }
         return found
@@ -124,7 +126,8 @@ private final class RunState: @unchecked Sendable {
     /// The run is over once the process exited and both pipes reached end of
     /// file, so no output written just before exit is lost.
     private func finishIfDone(_ change: () -> Void) {
-        let ready = lock.withLock { () -> (CheckedContinuation<GlinaCommand.Outcome, Error>, GlinaCommand.Outcome)? in
+        let ready = lock.withLock {
+            () -> (CheckedContinuation<GlinaCommand.Outcome, Error>, GlinaCommand.Outcome)? in
             change()
             guard open.isEmpty, let status, let waiting = continuation else { return nil }
             continuation = nil

@@ -90,7 +90,8 @@ extension GlinaOnboarding {
     private nonisolated static func installationID() -> String {
         let defaults = UserDefaults.standard
         if let saved = defaults.string(forKey: GlinaJourney.installationIDKey),
-           UUID(uuidString: saved) != nil {
+            UUID(uuidString: saved) != nil
+        {
             return saved
         }
         let created = UUID().uuidString.lowercased()
@@ -117,7 +118,7 @@ extension GlinaOnboarding {
             journeyVersionId: GlinaJourney.fallbackVersionID
         )
         guard bundle.definition.journeyVersion == GlinaJourney.journeyVersion,
-              bundle.definition.firstSuccessFact == GlinaJourney.firstSuccessFact
+            bundle.definition.firstSuccessFact == GlinaJourney.firstSuccessFact
         else {
             throw JourneyClientError.invalid("bundled fallback identity")
         }
@@ -139,7 +140,7 @@ extension GlinaOnboarding {
             return "Walkthrough progress could not be written on this machine."
         case .transport:
             return "The onboarding service could not be reached."
-        case let .invalid(reason):
+        case .invalid(let reason):
             return reason
         }
     }

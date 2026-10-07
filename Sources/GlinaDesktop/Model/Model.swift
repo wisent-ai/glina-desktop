@@ -22,7 +22,6 @@ private struct AssetSnapshot: Hashable {
     let modificationDate: Date
 }
 
-
 @MainActor
 final class GlinaModel: ObservableObject {
     @Published var draft = GlinaCommandDraft()
@@ -106,7 +105,6 @@ final class GlinaModel: ObservableObject {
     var output: String {
         result?.document ?? ""
     }
-
 
     func select(_ action: GlinaAction) {
         draft.action = action

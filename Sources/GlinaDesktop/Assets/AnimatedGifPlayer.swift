@@ -62,9 +62,12 @@ final class FrameDrivenGIFView: NSImageView {
             return
         }
         for index in 0..<CGImageSourceGetCount(source) {
-            guard let cgImage = CGImageSourceCreateImageAtIndex(source, index, options) else { continue }
+            guard let cgImage = CGImageSourceCreateImageAtIndex(source, index, options) else {
+                continue
+            }
             frames.append(NSImage(cgImage: cgImage, size: .zero))
-            let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+            let properties =
+                CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
             let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
             // ImageIO's delay is the file's own, with the same floor every
             // GIF decoder applies to delays too short to honour.

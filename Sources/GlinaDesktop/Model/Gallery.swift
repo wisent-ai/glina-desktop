@@ -11,9 +11,14 @@ extension GlinaModel {
     func galleryTiles() -> [URL] {
         let models = assetFiles.filter { $0.pathExtension.lowercased() == "glb" }
         let groupedStems = Set(models.map { $0.deletingPathExtension().lastPathComponent })
-        let orphans = assetFiles
+        let orphans =
+            assetFiles
             .filter { $0.pathExtension.lowercased() != "glb" }
-            .filter { preview in !groupedStems.contains { stem in preview.deletingPathExtension().lastPathComponent.hasPrefix(stem) } }
+            .filter { preview in
+                !groupedStems.contains { stem in
+                    preview.deletingPathExtension().lastPathComponent.hasPrefix(stem)
+                }
+            }
         let ascending: (URL, URL) -> Bool = {
             $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
         }
@@ -30,7 +35,8 @@ extension GlinaModel {
     }
 
     func modificationDate(_ url: URL) -> Date {
-        ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date) ?? .distantPast
+        ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date)
+            ?? .distantPast
     }
 
     func currentGalleryAsset(tiles: [URL]) -> URL? {

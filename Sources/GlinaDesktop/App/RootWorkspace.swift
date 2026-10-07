@@ -11,7 +11,8 @@ extension GlinaRootView {
     private var workspaceAndFirstRun: some View {
         WisentSectionBox(
             title: "Workspace and first run",
-            detail: "Import an existing GLB through Glina's quality gate, or replay the first-run guide."
+            detail:
+                "Import an existing GLB through Glina's quality gate, or replay the first-run guide."
         ) {
             VStack(alignment: .leading, spacing: WisentDesign.Space.x3) {
                 TextField("Variant of an imported base id (optional)", text: $model.variantParent)
@@ -27,7 +28,8 @@ extension GlinaRootView {
                 if let imported = model.assetImport {
                     Text(importSummary(imported))
                         .font(WisentTypeScale.caption())
-                        .foregroundStyle(imported.accepted ? WisentDesign.success : WisentDesign.danger)
+                        .foregroundStyle(
+                            imported.accepted ? WisentDesign.success : WisentDesign.danger)
                 }
                 if walkthrough != .idle {
                     WisentMutationBar(outcome: walkthrough) { walkthrough = .idle }
@@ -52,13 +54,15 @@ extension GlinaRootView {
         Task {
             await model.importAsset(
                 from: url,
-                variantOf: onboardingAttempt ? nil : (model.variantParent.isEmpty ? nil : model.variantParent)
+                variantOf: onboardingAttempt
+                    ? nil : (model.variantParent.isEmpty ? nil : model.variantParent)
             )
             if onboardingAttempt {
                 if let destination = model.importedAssetPath {
                     await onboarding.observeImportedAsset(path: destination)
                 } else {
-                    onboarding.importFailed(reason: model.failure ?? "Glina did not accept this asset.")
+                    onboarding.importFailed(
+                        reason: model.failure ?? "Glina did not accept this asset.")
                 }
             }
         }

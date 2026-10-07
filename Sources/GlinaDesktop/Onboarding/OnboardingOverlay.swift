@@ -91,9 +91,9 @@ struct GlinaOnboardingOverlay: View {
     }
 }
 
-private extension Dictionary where Key == String, Value == JSONValue {
-    func text(_ key: String) -> String? {
-        guard case let .string(value)? = self[key] else { return nil }
+extension Dictionary where Key == String, Value == JSONValue {
+    fileprivate func text(_ key: String) -> String? {
+        guard case .string(let value)? = self[key] else { return nil }
         return value
     }
 }

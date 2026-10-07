@@ -18,7 +18,8 @@ extension GlinaModel {
             let client = try await makeClient()
             let outcome = try await client.previewAnim(path: glbURL.path, clip: clip) { _ in }
             guard outcome.status == 0, outcome.refusal == nil else {
-                animationNote = (outcome.refusal ?? "The render did not finish.").trimmingCharacters(in: .whitespacesAndNewlines)
+                animationNote = (outcome.refusal ?? "The render did not finish.")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
                 WisentFailureReporter.shared.report(
                     failurePoint: "glina.animation_preview",
                     code: "unknown",
@@ -35,7 +36,8 @@ extension GlinaModel {
                 animationNote = outcome.document.trimmingCharacters(in: .whitespacesAndNewlines)
             }
         } catch {
-            animationNote = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            animationNote =
+                (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             WisentFailureReporter.shared.report(
                 failurePoint: "glina.animation_preview",
                 code: error is GlinaBackendError ? "infra_down" : "unknown",
@@ -66,16 +68,19 @@ extension GlinaModel {
             let client = try await makeClient()
             let outcome = try await client.previewScene(path: glbURL.path) { _ in }
             guard outcome.status == 0, outcome.refusal == nil else {
-                sceneNote = (outcome.refusal ?? "The scene render did not finish.").trimmingCharacters(in: .whitespacesAndNewlines)
+                sceneNote = (outcome.refusal ?? "The scene render did not finish.")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
                 return
             }
             guard let outPath = outcome.paths.first else {
-                sceneNote = "Glina reported a scene preview without an image path: \(outcome.document)"
+                sceneNote =
+                    "Glina reported a scene preview without an image path: \(outcome.document)"
                 return
             }
             let imageURL = URL(fileURLWithPath: outPath)
             guard let image = NSImage(contentsOf: imageURL), image.isValid else {
-                sceneNote = "Glina reported a scene preview that could not be opened as an image: \(outPath)"
+                sceneNote =
+                    "Glina reported a scene preview that could not be opened as an image: \(outPath)"
                 return
             }
             scenePreviewImage = image

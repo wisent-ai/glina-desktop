@@ -26,6 +26,6 @@ let package = Package(
             ],
             path: "Sources/GlinaDesktop",
             resources: [.process("Resources")]
-        ),
+        )
     ]
 )

@@ -59,20 +59,30 @@ struct GlinaClient: Sendable {
 
     // MARK: - Workflows
 
-    func sculpt(prompt: String, rounds: Int?, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+    func sculpt(prompt: String, rounds: Int?, onLog: @escaping @MainActor (String) -> Void)
+        async throws -> GlinaOutcome
+    {
         let cap = rounds.map { ["--rounds", String($0)] } ?? []
         return try await run(["sculpt", prompt] + cap, onLog: onLog)
     }
 
-    func verify(path: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+    func verify(path: String, onLog: @escaping @MainActor (String) -> Void) async throws
+        -> GlinaOutcome
+    {
         try await run(["verify", path], onLog: onLog)
     }
 
-    func previewAnim(path: String, clip: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
-        try await run(clip.isEmpty ? ["preview-anim", path] : ["preview-anim", path, "--clip", clip], onLog: onLog)
+    func previewAnim(path: String, clip: String, onLog: @escaping @MainActor (String) -> Void)
+        async throws -> GlinaOutcome
+    {
+        try await run(
+            clip.isEmpty ? ["preview-anim", path] : ["preview-anim", path, "--clip", clip],
+            onLog: onLog)
     }
 
-    func previewScene(path: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+    func previewScene(path: String, onLog: @escaping @MainActor (String) -> Void) async throws
+        -> GlinaOutcome
+    {
         try await run(["preview-scene", path], onLog: onLog)
     }
 
@@ -93,14 +103,18 @@ struct GlinaClient: Sendable {
     }
 
     /// `glina create`: the studio flow through the Weles browser layer.
-    func create(prompt: String, race: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+    func create(prompt: String, race: String, onLog: @escaping @MainActor (String) -> Void)
+        async throws -> GlinaOutcome
+    {
         var arguments = ["create", prompt]
         if !race.isEmpty { arguments += ["--race", race] }
         return try await run(arguments, onLog: onLog)
     }
 
     /// `glina animate`: the declared preset over the chosen asset, or the active one when the path is empty.
-    func animate(path: String, preset: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+    func animate(path: String, preset: String, onLog: @escaping @MainActor (String) -> Void)
+        async throws -> GlinaOutcome
+    {
         var arguments = ["animate"]
         if !path.isEmpty { arguments.append(path) }
         arguments += ["--preset", preset]
@@ -108,12 +122,16 @@ struct GlinaClient: Sendable {
     }
 
     /// `glina showcase`: build the declared animated reference asset.
-    func showcase(asset: String, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+    func showcase(asset: String, onLog: @escaping @MainActor (String) -> Void) async throws
+        -> GlinaOutcome
+    {
         try await run(["showcase", asset], onLog: onLog)
     }
 
     /// `glina showcases|presets list|add|remove`: the declarations the two workflows read.
-    func declarations(kind: GlinaDeclarationKind, verb: GlinaDeclarationVerb, name: String, file: String) async throws -> GlinaOutcome {
+    func declarations(
+        kind: GlinaDeclarationKind, verb: GlinaDeclarationVerb, name: String, file: String
+    ) async throws -> GlinaOutcome {
         var arguments = [kind.rawValue, verb.rawValue]
         switch verb {
         case .list: break
@@ -126,7 +144,9 @@ struct GlinaClient: Sendable {
     /// `glina workspace list|select <id>|remove <id>`: the imported assets,
     /// the active one, and the two counterparts of an import.
     func workspace(verb: GlinaWorkspaceVerb, asset: String) async throws -> GlinaOutcome {
-        try await run(verb == .list ? ["workspace", verb.rawValue] : ["workspace", verb.rawValue, asset]) { _ in }
+        try await run(
+            verb == .list ? ["workspace", verb.rawValue] : ["workspace", verb.rawValue, asset]
+        ) { _ in }
     }
 
     /// `glina export-config --out`: the resolved, owner-only config for a remote run.
@@ -135,7 +155,9 @@ struct GlinaClient: Sendable {
     }
 
     /// `glina setup`: provision the Blender tooling, or only check or describe it.
-    func setup(checkOnly: Bool, dryRun: Bool, onLog: @escaping @MainActor (String) -> Void) async throws -> GlinaOutcome {
+    func setup(checkOnly: Bool, dryRun: Bool, onLog: @escaping @MainActor (String) -> Void)
+        async throws -> GlinaOutcome
+    {
         var arguments = ["setup"]
         if checkOnly { arguments.append("--check") }
         if dryRun { arguments.append("--dry-run") }
@@ -179,7 +201,8 @@ struct GlinaClient: Sendable {
         for start in lines.indices.reversed() where lines[start].hasPrefix("{") {
             let candidate = lines[start...].joined(separator: "\n")
             if let data = candidate.data(using: .utf8),
-               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            {
                 return object
             }
         }
@@ -187,8 +210,10 @@ struct GlinaClient: Sendable {
     }
 
     private static func pretty(_ object: [String: Any]) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
-              let text = String(data: data, encoding: .utf8)
+        guard
+            let data = try? JSONSerialization.data(
+                withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
+            let text = String(data: data, encoding: .utf8)
         else { return "" }
         return text
     }
@@ -202,11 +227,13 @@ struct GlinaClient: Sendable {
     /// "<name>: <error>" for every check the doctor reported as not ok.
     private static func failedChecks(in document: String) -> [String] {
         guard let data = document.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let checks = object["checks"] as? [[String: Any]]
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let checks = object["checks"] as? [[String: Any]]
         else { return [] }
         return checks.compactMap { check in
-            guard check["ok"] as? Bool == false, let name = check["name"] as? String else { return nil }
+            guard check["ok"] as? Bool == false, let name = check["name"] as? String else {
+                return nil
+            }
             let error = check["error"] as? String
             return error.map { "\(name): \($0)" } ?? name
         }

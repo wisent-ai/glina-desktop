@@ -35,11 +35,15 @@ extension GlinaModel {
             return
         }
         let manager = FileManager.default
-        guard let enumerator = manager.enumerator(
-            at: root,
-            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey],
-            options: [.skipsHiddenFiles, .skipsPackageDescendants]
-        ) else {
+        guard
+            let enumerator = manager.enumerator(
+                at: root,
+                includingPropertiesForKeys: [
+                    .isRegularFileKey, .fileSizeKey, .contentModificationDateKey,
+                ],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            )
+        else {
             assetSnapshot = []
             assetFiles = []
             galleryIndex = 0
@@ -49,16 +53,20 @@ extension GlinaModel {
         for case let url as URL in enumerator {
             let ext = url.pathExtension.lowercased()
             guard ["glb", "png", "gif"].contains(ext),
-                  let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]),
-                  values.isRegularFile == true else { continue }
-            found.append((
-                url,
-                AssetSnapshot(
-                    path: url.path,
-                    size: values.fileSize ?? 0,
-                    modificationDate: values.contentModificationDate ?? .distantPast
-                )
-            ))
+                let values = try? url.resourceValues(forKeys: [
+                    .isRegularFileKey, .fileSizeKey, .contentModificationDateKey,
+                ]),
+                values.isRegularFile == true
+            else { continue }
+            found.append(
+                (
+                    url,
+                    AssetSnapshot(
+                        path: url.path,
+                        size: values.fileSize ?? 0,
+                        modificationDate: values.contentModificationDate ?? .distantPast
+                    )
+                ))
         }
         found.sort { $0.url.path.localizedStandardCompare($1.url.path) == .orderedAscending }
         let nextSnapshot = found.map(\.snapshot)

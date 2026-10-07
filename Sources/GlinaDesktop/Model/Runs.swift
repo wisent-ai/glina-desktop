@@ -33,7 +33,8 @@ extension GlinaModel {
             let outcome: GlinaOutcome
             switch draft.action {
             case .sculpt:
-                outcome = try await client.sculpt(prompt: draft.prompt, rounds: draft.roundCap, onLog: appendLog)
+                outcome = try await client.sculpt(
+                    prompt: draft.prompt, rounds: draft.roundCap, onLog: appendLog)
             case .verify:
                 outcome = try await client.verify(path: draft.assetPath, onLog: appendLog)
             case .config:
@@ -41,9 +42,11 @@ extension GlinaModel {
             case .doctor:
                 outcome = try await client.doctor()
             case .create:
-                outcome = try await client.create(prompt: draft.prompt, race: draft.race, onLog: appendLog)
+                outcome = try await client.create(
+                    prompt: draft.prompt, race: draft.race, onLog: appendLog)
             case .animate:
-                outcome = try await client.animate(path: draft.assetPath, preset: draft.preset, onLog: appendLog)
+                outcome = try await client.animate(
+                    path: draft.assetPath, preset: draft.preset, onLog: appendLog)
             case .showcase:
                 outcome = try await client.showcase(asset: draft.showcaseAsset, onLog: appendLog)
             case .declarations:
@@ -54,11 +57,13 @@ extension GlinaModel {
                     file: draft.declarationFile
                 )
             case .workspace:
-                outcome = try await client.workspace(verb: draft.workspaceVerb, asset: draft.workspaceAsset)
+                outcome = try await client.workspace(
+                    verb: draft.workspaceVerb, asset: draft.workspaceAsset)
             case .exportConfig:
                 outcome = try await client.exportConfig(out: draft.exportPath)
             case .setup:
-                outcome = try await client.setup(checkOnly: draft.setupCheckOnly, dryRun: draft.setupDryRun, onLog: appendLog)
+                outcome = try await client.setup(
+                    checkOnly: draft.setupCheckOnly, dryRun: draft.setupDryRun, onLog: appendLog)
             case .assets:
                 return
             }
@@ -107,11 +112,12 @@ extension GlinaModel {
         defer { isRunning = false }
         do {
             let client = try await makeClient()
-            let outcome = try await client.importAsset(source: source.path, variantOf: variantOf, onLog: appendLog)
+            let outcome = try await client.importAsset(
+                source: source.path, variantOf: variantOf, onLog: appendLog)
             result = outcome
             outputPaths = outcome.paths
             guard let data = outcome.document.data(using: .utf8),
-                  let report = try? JSONDecoder().decode(GlinaAssetImport.self, from: data)
+                let report = try? JSONDecoder().decode(GlinaAssetImport.self, from: data)
             else {
                 failure = outcome.refusal ?? "Glina returned an unreadable workspace import result."
                 return

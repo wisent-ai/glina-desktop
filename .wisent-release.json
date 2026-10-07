@@ -11,7 +11,7 @@
   "platforms": {
     "darwin-arm64": {
       "runner_platform": "darwin-arm64",
-      "quality": [],
+      "quality": [{"name": "fmt", "argv": ["bash", "release/fmt.sh", "--check"]}],
       "build": {
         "argv": ["sh", "release/stado-release.sh"]
       },

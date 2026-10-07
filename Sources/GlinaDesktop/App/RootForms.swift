@@ -14,11 +14,14 @@ extension GlinaRootView {
             detail: nil
         ) {
             VStack(spacing: WisentDesign.Space.x3) {
-                TextField("gothic dwarven tower, low-poly", text: $model.draft.prompt, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(3...8)
+                TextField(
+                    "gothic dwarven tower, low-poly", text: $model.draft.prompt, axis: .vertical
+                )
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(3...8)
                 HStack {
-                    Text("Max rounds").font(WisentTypeScale.bodyStrong()).foregroundStyle(WisentDesign.ink)
+                    Text("Max rounds").font(WisentTypeScale.bodyStrong()).foregroundStyle(
+                        WisentDesign.ink)
                     Spacer()
                     TextField("from config", text: $model.draft.rounds)
                         .textFieldStyle(.roundedBorder)
@@ -56,7 +59,6 @@ extension GlinaRootView {
         }
     }
 
-
     // MARK: - Results
 
     private func resultPanel(live: Bool) -> some View {
@@ -68,7 +70,11 @@ extension GlinaRootView {
                     title: model.backendStartFailed ? "Glina unavailable" : "Run failed",
                     detail: failure,
                     actions: model.backendStartFailed
-                        ? [WisentAction("Retry", symbol: "arrow.clockwise") { Task { await model.run() } }]
+                        ? [
+                            WisentAction("Retry", symbol: "arrow.clockwise") {
+                                Task { await model.run() }
+                            }
+                        ]
                         : []
                 )
             }
@@ -88,12 +94,14 @@ extension GlinaRootView {
             } else if model.isRunning {
                 WisentProgressPanel(
                     title: "Glina is running",
-                    detail: "Sculpting may take many rounds. The live log is the source of progress and errors."
+                    detail:
+                        "Sculpting may take many rounds. The live log is the source of progress and errors."
                 )
             } else {
                 WisentEmptyPanel(
                     title: "No result yet",
-                    detail: "Fill the required fields and run this workflow. Artifacts stay at the paths Glina reports.",
+                    detail:
+                        "Fill the required fields and run this workflow. Artifacts stay at the paths Glina reports.",
                     symbol: model.draft.action.symbol
                 )
             }
@@ -115,7 +123,9 @@ extension GlinaRootView {
                             Spacer(minLength: 0)
                             if FileManager.default.fileExists(atPath: path) {
                                 Button("Quick Look") { preview(path: path) }
-                                Button("Reveal in Finder") { model.revealInFinder(URL(fileURLWithPath: path)) }
+                                Button("Reveal in Finder") {
+                                    model.revealInFinder(URL(fileURLWithPath: path))
+                                }
                             }
                         }
                     }
