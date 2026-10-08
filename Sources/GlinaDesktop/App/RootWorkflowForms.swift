@@ -1,5 +1,5 @@
 // The forms of the workflows that mirror the rest of the CLI: create,
-// animate, showcase, the declarations the two read, export-config and setup.
+// animate, showcase, the declarations the two read, config export and setup.
 // Each asks only for what its one `glina` run takes; the run's refusals are
 // the CLI's own and are shown by the result panel.
 

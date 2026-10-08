@@ -65,7 +65,7 @@ struct GlinaCommandDraft: Equatable, Sendable {
     /// `workspace`: list the imported assets, make one active, or take one out.
     var workspaceVerb: GlinaWorkspaceVerb = .list
     var workspaceAsset = ""
-    /// `export-config`: where the resolved, owner-only config is written.
+    /// `config export`: where the resolved, owner-only config is written.
     var exportPath = ""
     /// `setup`: only locate the tooling, or only say what provisioning would do.
     var setupCheckOnly = true

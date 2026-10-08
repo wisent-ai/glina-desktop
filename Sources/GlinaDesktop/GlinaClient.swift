@@ -38,7 +38,7 @@ struct GlinaClient: Sendable {
     // MARK: - Reads
 
     func config() async throws -> GlinaOutcome {
-        try await run(["check-config"]) { _ in }
+        try await run(leaf("config", "check")) { _ in }
     }
 
     /// `glina doctor` exits 1 when any check failed and says which on stdout,
@@ -76,14 +76,14 @@ struct GlinaClient: Sendable {
         async throws -> GlinaOutcome
     {
         try await run(
-            clip.isEmpty ? ["preview-anim", path] : ["preview-anim", path, "--clip", clip],
+            leaf("preview", "anim") + (clip.isEmpty ? [path] : [path, "--clip", clip]),
             onLog: onLog)
     }
 
     func previewScene(path: String, onLog: @escaping @MainActor (String) -> Void) async throws
         -> GlinaOutcome
     {
-        try await run(["preview-scene", path], onLog: onLog)
+        try await run(leaf("preview", "scene") + [path], onLog: onLog)
     }
 
     func importAsset(
@@ -149,9 +149,9 @@ struct GlinaClient: Sendable {
         ) { _ in }
     }
 
-    /// `glina export-config --out`: the resolved, owner-only config for a remote run.
+    /// `glina config export --out`: the resolved, owner-only config for a remote run.
     func exportConfig(out: String) async throws -> GlinaOutcome {
-        try await run(["export-config", "--out", out]) { _ in }
+        try await run(leaf("config", "export") + ["--out", out]) { _ in }
     }
 
     /// `glina setup`: provision the Blender tooling, or only check or describe it.
@@ -165,6 +165,12 @@ struct GlinaClient: Sendable {
     }
 
     // MARK: - Transport
+
+    /// The words that name one leaf of a `glina` group (`config check`,
+    /// `preview anim`): the group, then its verb.
+    private func leaf(_ group: String, _ verb: String) -> [String] {
+        [group, verb]
+    }
 
     private func run(
         _ arguments: [String],

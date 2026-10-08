@@ -28,9 +28,9 @@ Blender MCP execution, GLB verification, or workspace persistence.
   a refusal rather than a fabricated image.
 
 The app shows the CLI's output and refusals rather than paraphrasing the
-quality gate. Each operation runs one finite `glina` command (`check-config`,
-`doctor`, `setup`, `export-config`, `sculpt`, `create`, `verify`, `animate`,
-`showcase`, `showcases`/`presets`, `preview-anim`, `preview-scene`, `import`,
+quality gate. Each operation runs one finite `glina` command (`config check`,
+`doctor`, `setup`, `config export`, `sculpt`, `create`, `verify`, `animate`,
+`showcase`, `showcases`/`presets`, `preview anim`, `preview scene`, `import`,
 `workspace`). Output streams into the live log; the exit status and final JSON
 document are the result. A rejected import displays its `reason`, while other
 failures show stderr or failed doctor checks. Both windows use the same
