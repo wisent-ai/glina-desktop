@@ -116,15 +116,34 @@ extension GlinaModel {
                 source: source.path, variantOf: variantOf, onLog: appendLog)
             result = outcome
             outputPaths = outcome.paths
-            guard let data = outcome.document.data(using: .utf8),
-                let report = try? JSONDecoder().decode(GlinaAssetImport.self, from: data)
-            else {
-                failure = outcome.refusal ?? "Glina returned an unreadable workspace import result."
+            // A result that does not decode is refused with the decoder's
+            // reason, beside Glina's own refusal when it gave one.
+            let report: GlinaAssetImport
+            do {
+                report = try JSONDecoder().decode(
+                    GlinaAssetImport.self, from: Data(outcome.document.utf8))
+            } catch {
+                failure = [
+                    outcome.refusal,
+                    "Glina returned an unreadable workspace import result: \(error)",
+                ]
+                .compactMap { $0 }
+                .joined(separator: " ")
                 return
             }
             assetImport = report
-            guard outcome.status == 0, report.accepted, let destination = report.path else {
-                failure = report.reason ?? "Glina did not accept this asset."
+            guard outcome.status == Int(EXIT_SUCCESS), report.accepted else {
+                if let reason = report.reason {
+                    failure = reason
+                } else {
+                    failure =
+                        "Glina answered \(report.status) without a reason: \(outcome.document)"
+                }
+                return
+            }
+            guard let destination = report.path else {
+                failure =
+                    "Glina answered \(report.status) without the imported asset's path: \(outcome.document)"
                 return
             }
             let url = URL(fileURLWithPath: destination)
@@ -138,7 +157,7 @@ extension GlinaModel {
             backendStartFailed = true
             failure = error.errorDescription
         } catch {
-            failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            failure = error.localizedDescription
         }
     }
 
