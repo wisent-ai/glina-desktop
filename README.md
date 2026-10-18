@@ -19,7 +19,10 @@ Blender MCP execution, GLB verification, or workspace persistence.
 - Verify a `.glb` against the structural quality gate (valid glTF container,
   triangle budget, materials/skins/animation presence, file-size bounds).
 - Inspect the resolved pipeline configuration — credentials stay redacted by
-  the CLI itself; secrets only ever resolve from Skarbiec references.
+  the CLI itself. `role://<role>/<field>` references resolve through Stado and
+  Skarbiec, or through the owner-only file selected by `GLINA_CREDENTIALS_FILE`
+  when Stado is not used. **Export Config** writes a resolved handoff containing
+  secrets; its output is not the redacted **Check Config** result.
 - Probe the live Blender MCP session health.
 - List the browser-layer tools the declared MCP server exposes (Weles, or the
   Playwright MCP server without Weles).

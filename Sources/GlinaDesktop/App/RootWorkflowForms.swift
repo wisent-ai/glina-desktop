@@ -119,7 +119,7 @@ extension GlinaRootView {
         WisentSectionBox(
             title: "Export config",
             detail:
-                "A resolved, owner-only copy of the config for a remote run; every skarbiec:// reference is answered here and the file is written with mode 0600."
+                "Resolve role:// references through Stado or the selected owner-only credentials file and export the configuration for a remote run. The exported file contains secrets; keep it private."
         ) {
             HStack(spacing: WisentDesign.Space.x3) {
                 TextField("/path/to/resolved-config.json", text: $model.draft.exportPath)
