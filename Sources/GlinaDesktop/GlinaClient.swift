@@ -182,11 +182,13 @@ struct GlinaClient: Sendable {
         if result.status == 0 {
             refusal = nil
         } else {
-            let lastLine = result.stderr
-                .split(separator: "\n")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .last { !$0.isEmpty }
-            refusal = lastLine ?? "The run failed."
+            let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            if detail.isEmpty {
+                refusal =
+                    "glina \(arguments.joined(separator: " ")) exited with status \(result.status) without stderr; stdout: \(result.stdout)"
+            } else {
+                refusal = detail
+            }
         }
         return GlinaOutcome(
             status: Int(result.status),
