@@ -12,12 +12,13 @@ extension GlinaRootView {
 
     var createForm: some View {
         WisentSectionBox(
-            title: "Prompt", detail: "The studio flow through the Weles browser layer."
+            title: "Prompt",
+            detail:
+                "The studio flow through the browser layer the config declares: Weles, or the Playwright MCP server."
         ) {
             VStack(spacing: WisentDesign.Space.x3) {
                 TextField("dwarven axe warrior", text: $model.draft.prompt, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
-                    .lineLimit(3...8)
                 TextField(
                     "race (optional): humans, dwarves, elves, skeletons", text: $model.draft.race
                 )

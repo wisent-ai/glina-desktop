@@ -21,7 +21,8 @@ Blender MCP execution, GLB verification, or workspace persistence.
 - Inspect the resolved pipeline configuration — credentials stay redacted by
   the CLI itself; secrets only ever resolve from Skarbiec references.
 - Probe the live Blender MCP session health.
-- List the browser-layer tools the Weles MCP server exposes.
+- List the browser-layer tools the declared MCP server exposes (Weles, or the
+  Playwright MCP server without Weles).
 - Browse output `.glb` and `.png` artifacts with Quick Look and Reveal in Finder.
 - Render a selected GLB on neutral ground from Assets with **Preview in scene**.
   The PNG appears in the gallery; a failed Blender import or render appears as
