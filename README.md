@@ -40,7 +40,7 @@ workspace import as the CLI.
 ## Requirements
 
 - Apple-silicon macOS 14 or newer.
-- Glina installed on PATH, `~/.stado/bin/glina`, or `~/.local/bin/glina`.
+- Glina installed in a directory on PATH or at `~/.stado/bin/glina`; when neither holds it, the app names every place it looked.
 
 Install Glina itself through npm:
 

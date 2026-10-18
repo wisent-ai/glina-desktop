@@ -2,12 +2,10 @@ import Foundation
 
 /// One Glina CLI run per operation.
 ///
-/// The app used to start `glina serve --port 0` on first use and keep it for
-/// as long as it ran: a second resident Glina process with its own loopback
-/// port. Every operation is now one finite `glina` command. Its output is
-/// forwarded as it arrives, and the run ends with the command's exit status
-/// and everything it printed, so the window shows the same document and the
-/// same refusal an operator sees in a terminal.
+/// Every operation is one finite `glina` command. Its output is forwarded as
+/// it arrives, and the run ends with the command's exit status and everything
+/// it printed, so the window shows the same document and the same refusal an
+/// operator sees in a terminal.
 enum GlinaCommand {
     struct Outcome: Sendable {
         let status: Int32
@@ -15,24 +13,20 @@ enum GlinaCommand {
         let stderr: String
     }
 
-    /// The installed `glina` executable: the PATH entries first, then the
-    /// well-known install locations.
+    /// The installed `glina` executable: the first one in a PATH directory,
+    /// then the one Stado installs into `~/.stado/bin`. When there is none,
+    /// the refusal names every place looked at.
     static func executable() throws -> URL {
         let manager = FileManager.default
-        let home = manager.homeDirectoryForCurrentUser
-        let candidates =
-            (ProcessInfo.processInfo.environment["PATH"] ?? "")
-            .split(separator: ":")
-            .map { URL(fileURLWithPath: String($0)).appendingPathComponent("glina") }
-            + [
-                home.appendingPathComponent(".stado/bin/glina"),
-                home.appendingPathComponent(".local/bin/glina"),
-                URL(fileURLWithPath: "/opt/homebrew/bin/glina"),
-                URL(fileURLWithPath: "/usr/local/bin/glina"),
-            ]
+        var directories: [URL] = []
+        if let path = ProcessInfo.processInfo.environment["PATH"] {
+            directories += path.split(separator: ":").map { URL(fileURLWithPath: String($0)) }
+        }
+        directories.append(manager.homeDirectoryForCurrentUser.appendingPathComponent(".stado/bin"))
+        let candidates = directories.map { $0.appendingPathComponent("glina") }
         guard let found = candidates.first(where: { manager.isExecutableFile(atPath: $0.path) })
         else {
-            throw GlinaBackendError.executableMissing
+            throw GlinaBackendError.executableMissing(searched: candidates.map(\.path))
         }
         return found
     }
@@ -58,7 +52,7 @@ enum GlinaCommand {
             for (pipe, stream) in [(stdout, RunState.Stream.stdout), (stderr, .stderr)] {
                 pipe.fileHandleForReading.readabilityHandler = { handle in
                     let data = handle.availableData
-                    guard !data.isEmpty else {
+                    if data.isEmpty {
                         handle.readabilityHandler = nil
                         run.closed(stream)
                         return
@@ -140,13 +134,14 @@ private final class RunState: @unchecked Sendable {
 }
 
 enum GlinaBackendError: LocalizedError {
-    case executableMissing
+    case executableMissing(searched: [String])
     case failedToStart(String)
 
     var errorDescription: String? {
         switch self {
-        case .executableMissing:
-            return "Glina is not installed."
+        case .executableMissing(let searched):
+            return
+                "Glina is not installed: no executable glina in \(searched.joined(separator: ", "))."
         case .failedToStart(let reason):
             return "Glina could not start. \(reason)"
         }
