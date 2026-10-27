@@ -57,8 +57,11 @@ Then build and install the app:
 ./release/bundle/build-app.sh
 ```
 
-The application bundle is installed to `~/Applications/Glina.app` and must be
-signed with a stable Developer ID or Apple Development identity.
+The application bundle is installed to `~/Applications/Glina.app` (unless
+`GLINA_INSTALL_AFTER_BUILD=no`) and signed through `stado product signing sign`
+with the certificate `WISENT_CODESIGN_IDENTITY` names, or else the Skarbiec
+certificate Stado selects itself. A running Glina is restarted on the new
+bundle with `stado product restart --if-running`; a stopped one stays stopped.
 
 Releases go through Stado: `.wisent-release.json` runs
 `release/stado-release.sh` on a darwin builder, which builds the same bundle

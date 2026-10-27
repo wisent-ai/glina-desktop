@@ -16,10 +16,13 @@ enum GallerySort: String, CaseIterable, Identifiable {
         }
     }
 }
-private struct AssetSnapshot: Hashable {
+/// What a listed asset looked like when it was read, so a listing that finds
+/// nothing new leaves the browser as it is. The system may report no size or
+/// date for a file; that absence is compared like any other value.
+struct AssetSnapshot: Hashable {
     let path: String
-    let size: Int
-    let modificationDate: Date
+    let size: Int?
+    let modificationDate: Date?
 }
 
 @MainActor
@@ -43,7 +46,7 @@ final class GlinaModel: ObservableObject {
     @Published var assetsDirectory: URL?
     @Published var assetFiles: [URL] = []
     var assetSnapshot: [AssetSnapshot] = []
-    var assetRefreshTask: Task<Void, Never>?
+    var assetWatch: AssetTreeWatch?
 
     /// Strongly retained Quick Look controller — QLPreviewPanel's dataSource
     /// is assigned, not retained, so something must own it.
@@ -51,7 +54,7 @@ final class GlinaModel: ObservableObject {
 
     // Gallery browsing: one focused element, arrows/strip to move, sort order.
     @Published var gallerySort: GallerySort = .nameAscending
-    @Published var galleryIndex = 0
+    @Published var galleryIndex: Int = .zero
     @Published var focusPath: String?
     // MARK: - Animation preview
     //
@@ -73,24 +76,19 @@ final class GlinaModel: ObservableObject {
     init(assetsDirectory: URL? = nil) {
         self.assetsDirectory = assetsDirectory
         refreshAssets()
-        startAutomaticAssetRefresh()
-    }
-
-    deinit {
-        assetRefreshTask?.cancel()
+        watchAssets()
     }
 
     /// Launch flags: `--assets-dir PATH` selects the output directory,
     /// `--play PATH` opens the window already on that element.
     func applyLaunchOptions() {
         let arguments = ProcessInfo.processInfo.arguments
-        var index = 0
-        while index < arguments.count {
-            switch arguments[index] {
-            case "--assets-dir" where arguments.indices.contains(index + 1):
-                setAssetsDirectory(URL(fileURLWithPath: arguments[index + 1]))
-            case "--play" where arguments.indices.contains(index + 1):
-                let url = URL(fileURLWithPath: arguments[index + 1])
+        for (flag, value) in zip(arguments, arguments.dropFirst()) {
+            switch flag {
+            case "--assets-dir":
+                setAssetsDirectory(URL(fileURLWithPath: value))
+            case "--play":
+                let url = URL(fileURLWithPath: value)
                 if FileManager.default.fileExists(atPath: url.path) {
                     focusPath = url.path
                 }
@@ -98,12 +96,13 @@ final class GlinaModel: ObservableObject {
             default:
                 break
             }
-            index += 1
         }
     }
 
+    /// The document the last run printed; before any run there is none.
     var output: String {
-        result?.document ?? ""
+        guard let result else { return String() }
+        return result.document
     }
 
     func select(_ action: GlinaAction) {

@@ -1,10 +1,8 @@
 {
   "$schema": "https://github.com/wisent-ai/wisent-desktop-update/raw/main/release-manifest.schema.json",
-  "schema": 1,
   "product": "Glina",
   "bundle_id": "ai.wisent.glina.desktop",
   "bundle_path": ".build/Glina.app",
   "build_command": "GLINA_INSTALL_AFTER_BUILD=no ./release/bundle/build-app.sh",
-  "archive_name": "Glina-{version}.zip",
-  "minimum_system_version": "14.0"
+  "archive_name": "Glina-{version}.zip"
 }

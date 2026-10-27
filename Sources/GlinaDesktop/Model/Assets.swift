@@ -1,5 +1,6 @@
 // The assets browser: which directory is open, what is in it, and keeping
-// that list true while the backend writes into it.
+// that list true while the backend writes into it, by listing the tree again
+// after every change FSEvents reports under it.
 
 import AppKit
 import Foundation
@@ -21,75 +22,106 @@ extension GlinaModel {
 
     func setAssetsDirectory(_ url: URL) {
         assetsDirectory = url
-        assetSnapshot = []
-        galleryIndex = 0
+        clearAssets()
         refreshAssets()
+        watchAssets()
     }
 
+    /// Lists the open directory. With no directory open there is nothing to
+    /// list; a tree that cannot be listed is reported with its cause, and the
+    /// list keeps what it showed when it was last read.
     func refreshAssets() {
-        let selectedPath = currentGalleryAsset(tiles: galleryTiles())?.path
-        guard let root = assetsDirectory else {
-            assetSnapshot = []
-            assetFiles = []
-            galleryIndex = 0
-            return
+        guard let root = assetsDirectory else { return clearAssets() }
+        switch Result(catching: { try Self.listAssets(under: root) }) {
+        case .success(let found):
+            show(found)
+        case .failure(let error):
+            failure = error.localizedDescription
         }
-        let manager = FileManager.default
+    }
+
+    private static func listAssets(under root: URL) throws -> [(url: URL, snapshot: AssetSnapshot)]
+    {
+        let keys: [URLResourceKey] = [
+            .isRegularFileKey, .contentTypeKey, .fileSizeKey, .contentModificationDateKey,
+        ]
+        var refusal: AssetListingFailure?
         guard
-            let enumerator = manager.enumerator(
+            let enumerator = FileManager.default.enumerator(
                 at: root,
-                includingPropertiesForKeys: [
-                    .isRegularFileKey, .fileSizeKey, .contentModificationDateKey,
-                ],
-                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+                includingPropertiesForKeys: keys,
+                options: [.skipsHiddenFiles, .skipsPackageDescendants],
+                errorHandler: { url, error in
+                    refusal = AssetListingFailure(path: url.path, cause: error.localizedDescription)
+                    return false
+                }
             )
         else {
-            assetSnapshot = []
-            assetFiles = []
-            galleryIndex = 0
-            return
+            throw AssetListingFailure(
+                path: root.path, cause: "FileManager returned no enumerator for it")
         }
         var found: [(url: URL, snapshot: AssetSnapshot)] = []
         for case let url as URL in enumerator {
-            let ext = url.pathExtension.lowercased()
-            guard ["glb", "png", "gif"].contains(ext),
-                let values = try? url.resourceValues(forKeys: [
-                    .isRegularFileKey, .fileSizeKey, .contentModificationDateKey,
-                ]),
-                values.isRegularFile == true
+            let values = try url.resourceValues(forKeys: Set(keys))
+            guard values.isRegularFile == true,
+                let type = values.contentType,
+                AssetKind(contentType: type) != nil
             else { continue }
             found.append(
                 (
                     url,
                     AssetSnapshot(
                         path: url.path,
-                        size: values.fileSize ?? 0,
-                        modificationDate: values.contentModificationDate ?? .distantPast
+                        size: values.fileSize,
+                        modificationDate: values.contentModificationDate
                     )
                 ))
         }
-        found.sort { $0.url.path.localizedStandardCompare($1.url.path) == .orderedAscending }
+        if let refusal { throw refusal }
+        return found.sorted {
+            $0.url.path.localizedStandardCompare($1.url.path) == .orderedAscending
+        }
+    }
+
+    private func show(_ found: [(url: URL, snapshot: AssetSnapshot)]) {
         let nextSnapshot = found.map(\.snapshot)
         guard nextSnapshot != assetSnapshot else { return }
+        let selectedPath = currentGalleryAsset(tiles: galleryTiles())?.path
         assetSnapshot = nextSnapshot
         assetFiles = found.map(\.url)
 
         let tiles = galleryTiles()
         if let selectedPath, let index = tiles.firstIndex(where: { $0.path == selectedPath }) {
             galleryIndex = index
+        } else if let last = tiles.indices.last {
+            galleryIndex = min(galleryIndex, last)
         } else {
-            galleryIndex = min(galleryIndex, max(tiles.count - 1, 0))
+            galleryIndex = tiles.startIndex
         }
     }
 
-    func startAutomaticAssetRefresh() {
-        assetRefreshTask?.cancel()
-        assetRefreshTask = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled, let self else { return }
-                self.refreshAssets()
+    private func clearAssets() {
+        assetSnapshot.removeAll()
+        assetFiles.removeAll()
+        galleryIndex = .zero
+    }
+
+    /// Opens a watch over the chosen directory, replacing the previous one.
+    /// A watch that cannot be opened is reported with its cause, and the list
+    /// then shows what was there when it was last read.
+    func watchAssets() {
+        assetWatch = nil
+        guard let root = assetsDirectory else { return }
+        let opened = Result {
+            try AssetTreeWatch(root: root) { [weak self] in
+                self?.refreshAssets()
             }
+        }
+        switch opened {
+        case .success(let watch):
+            assetWatch = watch
+        case .failure(let error):
+            failure = error.localizedDescription
         }
     }
 
@@ -104,9 +136,21 @@ extension GlinaModel {
         guard let panel = QLPreviewPanel.shared() else { return }
         panel.dataSource = controller
         panel.delegate = controller
-        panel.currentPreviewItemIndex = max(0, min(index, urls.count - 1))
+        panel.currentPreviewItemIndex = min(
+            max(index, urls.startIndex), urls.index(before: urls.endIndex))
         panel.makeKeyAndOrderFront(nil)
         panel.reloadData()
     }
 
+}
+
+/// A tree the assets browser could not list, with the path FileManager
+/// stopped at and the reason it gave.
+struct AssetListingFailure: LocalizedError {
+    let path: String
+    let cause: String
+
+    var errorDescription: String? {
+        "Glina cannot list the assets under \(path): \(cause)."
+    }
 }
