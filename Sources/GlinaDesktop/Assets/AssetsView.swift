@@ -37,20 +37,14 @@ struct GlinaAssetsView: View {
             WisentSectionBox(
                 title: "Output directory",
                 detail:
-                    "Where Glina writes sculpted assets. The browser lists every .glb and .png beneath it."
+                    "Where Glina writes sculpted assets. The browser lists every model, still and animation beneath it."
             ) {
                 HStack(spacing: WisentDesign.Space.x3) {
-                    Text(model.assetsDirectory?.path ?? "No directory chosen")
-                        .font(WisentTypeScale.identifier())
-                        .foregroundStyle(
-                            model.assetsDirectory == nil ? WisentDesign.muted : WisentDesign.ink
-                        )
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    directoryLabel
                     TextField("Variant of base id (optional)", text: $model.variantParent)
                         .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 200)
-                    Spacer(minLength: 0)
+                        .frame(maxWidth: WisentAppLayout.sidebarWidth)
+                    Spacer(minLength: .zero)
                     Button("Import GLB…") { chooseAssetForImport() }
                         .disabled(model.isRunning)
                     Button("Choose Directory") { model.chooseAssetsDirectory() }
@@ -59,13 +53,27 @@ struct GlinaAssetsView: View {
                     }
                 }
                 if let imported = model.assetImport {
-                    Text(
-                        imported.path.map { "\(imported.status.capitalized): \($0)" }
-                            ?? "\(imported.status.capitalized): \(imported.reason ?? "No workspace state changed.")"
-                    )
-                    .font(WisentTypeScale.caption())
-                    .foregroundStyle(imported.accepted ? WisentDesign.success : WisentDesign.danger)
+                    Text(importLine(imported))
+                        .font(WisentTypeScale.caption())
+                        .foregroundStyle(imported.accepted ? WisentDesign.success : WisentDesign.danger)
                 }
+            }
+
+            if let failure = model.assetsListingFailure {
+                WisentAlertPanel(
+                    tone: .danger,
+                    title: "The directory could not be listed",
+                    detail: failure,
+                    actions: [WisentAction("Refresh", symbol: "arrow.clockwise") { model.refreshAssets() }]
+                )
+            }
+            if let failure = model.assetsWatchFailure {
+                WisentAlertPanel(
+                    tone: .warning,
+                    title: "The directory is not watched for changes",
+                    detail: "\(failure) The list changes only when you refresh it.",
+                    actions: [WisentAction("Watch again", symbol: "eye") { model.watchAssets() }]
+                )
             }
 
             if model.assetsDirectory != nil {
@@ -82,13 +90,48 @@ struct GlinaAssetsView: View {
         }
     }
 
+    /// The open directory's whole path, wrapped rather than cut, so the
+    /// operator can read and select every part of it.
+    @ViewBuilder
+    private var directoryLabel: some View {
+        if let directory = model.assetsDirectory {
+            Text(directory.path)
+                .font(WisentTypeScale.identifier())
+                .foregroundStyle(WisentDesign.ink)
+                .textSelection(.enabled)
+        } else {
+            Text("No directory chosen")
+                .font(WisentTypeScale.identifier())
+                .foregroundStyle(WisentDesign.muted)
+        }
+    }
+
+    /// What the backend did with an imported asset: where it kept it, or why
+    /// it kept nothing, in the backend's own words when it gave some.
+    private func importLine(_ imported: GlinaAssetImport) -> String {
+        let status = imported.status.capitalized
+        switch (imported.path, imported.reason) {
+        case let (.some(path), _):
+            return "\(status): \(path)"
+        case let (.none, .some(reason)):
+            return "\(status): \(reason)"
+        case (.none, .none):
+            return "\(status): the backend kept no file and gave no reason."
+        }
+    }
+
     private func chooseAssetForImport() {
         guard !model.isRunning else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
+        // The system derives the model type from its name; on a system that
+        // derives none, the panel offers every file and the backend's import
+        // gate refuses one that is not a model.
+        if let modelType = AssetKind.modelType {
+            panel.allowedContentTypes = [modelType]
+        }
         panel.message = "Choose a GLB for Glina to validate and keep in its workspace."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
@@ -120,14 +163,14 @@ struct GlinaAssetsView: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    .frame(maxWidth: 180)
+                    .frame(maxWidth: WisentAppLayout.facetRailWidth)
                     Spacer()
-                    Text("\(model.galleryIndex + 1) / \(tiles.count)")
+                    Text("\(model.galleryPosition(tiles: tiles)) / \(tiles.count)")
                         .font(WisentTypeScale.identifier())
                         .foregroundStyle(WisentDesign.secondary)
-                    Button("‹") { model.stepGallery(-1, count: tiles.count) }
+                    Button("‹") { model.showPreviousTile(of: tiles) }
                         .keyboardShortcut(.leftArrow, modifiers: [])
-                    Button("›") { model.stepGallery(1, count: tiles.count) }
+                    Button("›") { model.showNextTile(of: tiles) }
                         .keyboardShortcut(.rightArrow, modifiers: [])
                 }
                 focusedAsset(tiles: tiles)
@@ -141,16 +184,16 @@ struct GlinaAssetsView: View {
     private func focusedAsset(tiles: [URL]) -> some View {
         if let url = model.currentGalleryAsset(tiles: tiles) {
             tileContent(url)
-                .frame(maxHeight: 380)
+                .frame(maxHeight: AssetsLayout.previewHeight)
                 .frame(maxWidth: .infinity)
-                .background(WisentDesign.muted.opacity(0.10))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .background(WisentDesign.canvasMuted)
+                .clipShape(RoundedRectangle(cornerRadius: WisentDesign.Radius.medium))
             HStack(spacing: WisentDesign.Space.x3) {
                 Text(url.lastPathComponent)
                     .font(WisentTypeScale.bodyStrong())
                     .foregroundStyle(WisentDesign.ink)
-                Spacer(minLength: 0)
-                if url.pathExtension.lowercased() == "glb" {
+                Spacer(minLength: .zero)
+                if model.assetKind(of: url) == .model {
                     Button("Animate this") { model.selectedGLB = url }
                     Button(model.isRenderingScene ? "Rendering scene…" : "Preview in scene") {
                         Task { await model.renderScenePreview(for: url) }
@@ -168,95 +211,17 @@ struct GlinaAssetsView: View {
                 }
                 if let image = model.scenePreviewImage {
                     Image(nsImage: image).resizable().aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: 360)
+                        .frame(maxHeight: AssetsLayout.previewHeight)
                 }
             }
         }
     }
 
-    private func filmstrip(tiles: [URL]) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: WisentDesign.Space.x2) {
-                    ForEach(Array(tiles.enumerated()), id: \.element) { index, url in
-                        ZStack {
-                            Rectangle().fill(WisentDesign.muted.opacity(0.10))
-                            tileContent(url)
-                                .padding(4)
-                        }
-                        .frame(width: 88, height: 88)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(
-                                    index == model.galleryIndex ? WisentDesign.brand : .clear,
-                                    lineWidth: 2)
-                        )
-                        .contentShape(Rectangle())
-                        .onTapGesture { model.galleryIndex = index }
-                        .id(index)
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-            .frame(height: 96)
-            .onChange(of: model.galleryIndex) { _, newIndex in
-                proxy.scrollTo(newIndex, anchor: .center)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func tileContent(_ url: URL) -> some View {
-        switch url.pathExtension.lowercased() {
-        case "gif":
-            AnimatedGifPlayer(url: url)
-                .aspectRatio(contentMode: .fit)
-        case "png":
-            imageOrPlaceholder(url)
-        default:
-            if let preview = matchedPreview(for: url) {
-                imageOrPlaceholder(preview)
-            } else {
-                Image(systemName: "cube.transparent")
-                    .font(.system(size: 40))
-                    .foregroundStyle(WisentDesign.muted)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func imageOrPlaceholder(_ url: URL) -> some View {
-        if url.pathExtension.lowercased() == "gif" {
-            AnimatedGifPlayer(url: url)
-                .aspectRatio(contentMode: .fit)
-        } else if let image = NSImage(contentsOf: url) {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-        } else {
-            Image(systemName: "photo")
-                .foregroundStyle(WisentDesign.muted)
-        }
-    }
-
-    /// A .glb tile shows the rendered sibling the pipeline already produced
-    /// (smok.glb → smok-flap-preview.gif, kamien.glb → kamien-preview.png).
-    private func matchedPreview(for glbURL: URL) -> URL? {
-        let stem = glbURL.deletingPathExtension().lastPathComponent
-        return model.assetFiles.first { candidate in
-            candidate.deletingLastPathComponent() == glbURL.deletingLastPathComponent()
-                && candidate != glbURL
-                && ["png", "gif"].contains(candidate.pathExtension.lowercased())
-                && candidate.deletingPathExtension().lastPathComponent.hasPrefix(stem)
-        }
-    }
-
-    /// The animation workflow for one selected .glb: the operator names a
+    /// The animation workflow for one selected model: the operator names a
     /// clip (or leaves empty for the longest), Glina renders it through
     /// Blender, and the looping GIF plays right below.
-    /// Two independent entries: "Animate" on a .glb opens the render form,
-    /// "Play" on a .gif plays it. Either may exist without the other.
+    /// Two independent entries: "Animate" on a model opens the render form,
+    /// "Play" on an animation plays it. Either may exist without the other.
     @ViewBuilder
     private var animationSection: some View {
         if model.selectedGLB != nil || model.animatedPreviewURL != nil {
@@ -270,7 +235,7 @@ struct GlinaAssetsView: View {
                     HStack(spacing: WisentDesign.Space.x3) {
                         TextField("clip (empty = longest)", text: $model.animationClip)
                             .font(WisentTypeScale.identifier())
-                            .frame(maxWidth: 240)
+                            .frame(maxWidth: WisentAppLayout.sidebarWidth)
                         Button(model.isRenderingAnimation ? "Rendering…" : "Render animation") {
                             Task { await model.renderAnimationPreview(for: glb) }
                         }
@@ -284,7 +249,7 @@ struct GlinaAssetsView: View {
                 }
                 if let gif = model.animatedPreviewURL {
                     AnimatedGifPlayer(url: gif)
-                        .frame(maxWidth: 420, maxHeight: 320)
+                        .frame(maxWidth: WisentAppLayout.dialogWidth, maxHeight: AssetsLayout.previewHeight)
                         .frame(maxWidth: .infinity, alignment: .center)
                     HStack {
                         Spacer()

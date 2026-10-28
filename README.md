@@ -26,7 +26,11 @@ Blender MCP execution, GLB verification, or workspace persistence.
 - Probe the live Blender MCP session health.
 - List the browser-layer tools the declared MCP server exposes (Weles, or the
   Playwright MCP server without Weles).
-- Browse output `.glb` and `.png` artifacts with Quick Look and Reveal in Finder.
+- Browse output models, stills and animations, told apart by the content type
+  the system records, with Quick Look and Reveal in Finder. A directory that
+  cannot be listed shows the cause on Assets with **Refresh**, and the next
+  listing that succeeds clears it; a directory that cannot be watched shows
+  the cause with **Watch again**. Neither is reported as a failed run.
 - Render a selected GLB on neutral ground from Assets with **Preview in scene**.
   The PNG appears in the gallery; a failed Blender import or render appears as
   a refusal rather than a fabricated image.

@@ -21,6 +21,8 @@ enum GallerySort: String, CaseIterable, Identifiable {
 /// date for a file; that absence is compared like any other value.
 struct AssetSnapshot: Hashable {
     let path: String
+    /// What the file is, read from the content type the system records.
+    let kind: AssetKind
     let size: Int?
     let modificationDate: Date?
 }
@@ -45,7 +47,15 @@ final class GlinaModel: ObservableObject {
     // Assets browser.
     @Published var assetsDirectory: URL?
     @Published var assetFiles: [URL] = []
-    var assetSnapshot: [AssetSnapshot] = []
+    /// What the last listing read for each listed file, keyed by its path, so
+    /// a tile, a match or a sort comparison finds its file in constant time.
+    var assetSnapshot: [String: AssetSnapshot] = [:]
+    /// Why the open directory could not be listed the last time it was read;
+    /// cleared by the next listing that succeeds.
+    @Published var assetsListingFailure: String?
+    /// Why the open directory is not watched for changes; cleared when a
+    /// watch opens.
+    @Published var assetsWatchFailure: String?
     var assetWatch: AssetTreeWatch?
 
     /// Strongly retained Quick Look controller — QLPreviewPanel's dataSource

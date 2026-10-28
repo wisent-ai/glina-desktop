@@ -28,15 +28,17 @@ extension GlinaModel {
     }
 
     /// Lists the open directory. With no directory open there is nothing to
-    /// list; a tree that cannot be listed is reported with its cause, and the
-    /// list keeps what it showed when it was last read.
+    /// list; a tree that cannot be listed is reported with its cause beside
+    /// the browser, the list keeps what it showed when it was last read, and
+    /// the next listing that succeeds clears the report.
     func refreshAssets() {
         guard let root = assetsDirectory else { return clearAssets() }
         switch Result(catching: { try Self.listAssets(under: root) }) {
         case .success(let found):
+            assetsListingFailure = nil
             show(found)
         case .failure(let error):
-            failure = error.localizedDescription
+            assetsListingFailure = error.localizedDescription
         }
     }
 
@@ -65,13 +67,14 @@ extension GlinaModel {
             let values = try url.resourceValues(forKeys: Set(keys))
             guard values.isRegularFile == true,
                 let type = values.contentType,
-                AssetKind(contentType: type) != nil
+                let kind = AssetKind(contentType: type)
             else { continue }
             found.append(
                 (
                     url,
                     AssetSnapshot(
                         path: url.path,
+                        kind: kind,
                         size: values.fileSize,
                         modificationDate: values.contentModificationDate
                     )
@@ -84,7 +87,7 @@ extension GlinaModel {
     }
 
     private func show(_ found: [(url: URL, snapshot: AssetSnapshot)]) {
-        let nextSnapshot = found.map(\.snapshot)
+        let nextSnapshot = Dictionary(uniqueKeysWithValues: found.map { ($0.snapshot.path, $0.snapshot) })
         guard nextSnapshot != assetSnapshot else { return }
         let selectedPath = currentGalleryAsset(tiles: galleryTiles())?.path
         assetSnapshot = nextSnapshot
@@ -103,14 +106,16 @@ extension GlinaModel {
     private func clearAssets() {
         assetSnapshot.removeAll()
         assetFiles.removeAll()
+        assetsListingFailure = nil
         galleryIndex = .zero
     }
 
     /// Opens a watch over the chosen directory, replacing the previous one.
-    /// A watch that cannot be opened is reported with its cause, and the list
-    /// then shows what was there when it was last read.
+    /// A watch that cannot be opened is reported with its cause beside the
+    /// browser, and the list then shows what was there when it was last read.
     func watchAssets() {
         assetWatch = nil
+        assetsWatchFailure = nil
         guard let root = assetsDirectory else { return }
         let opened = Result {
             try AssetTreeWatch(root: root) { [weak self] in
@@ -121,8 +126,14 @@ extension GlinaModel {
         case .success(let watch):
             assetWatch = watch
         case .failure(let error):
-            failure = error.localizedDescription
+            assetsWatchFailure = error.localizedDescription
         }
+    }
+
+    /// What the listed file at `url` is; nil for a file the browser does not
+    /// list.
+    func assetKind(of url: URL) -> AssetKind? {
+        assetSnapshot[url.path]?.kind
     }
 
     func revealInFinder(_ url: URL) {
